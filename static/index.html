@@ -392,14 +392,14 @@
       </div>
 
       <div class="flex items-center gap-3 mt-3">
-        <button onclick="cambiarTab('cartera')" class="w-12 h-12 shrink-0 rounded-full bg-sun text-ink flex items-center justify-center font-black text-base shadow-[0_6px_16px_rgba(255,194,14,0.35)]" title="Cambiar de broker">
+        <button onclick="cambiarTab('cartera')" class="w-12 h-12 shrink-0 rounded-full bg-sun text-ink flex items-center justify-center font-black text-base shadow-[0_6px_16px_rgba(255,194,14,0.35)]" title="Tu perfil">
           <span id="traderAvatar">SA</span>
         </button>
 
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1">
             <span id="labelTraderNombre" class="text-[18px] font-black truncate text-cream">@samu</span>
-            <button onclick="cambiarTab('cartera')" class="text-white/50 hover:text-cream text-[13px] leading-none" title="Cambiar identidad">▾</button>
+            <button onclick="cambiarTab('cartera')" class="text-white/50 hover:text-cream text-[13px] leading-none" title="Tu perfil">▾</button>
           </div>
           <div id="labelTraderRango" class="text-[13px] font-bold text-white/60 truncate mt-0.5">Tiburón del Parqué</div>
         </div>
@@ -751,11 +751,6 @@
           <div id="perfilGruposList" class="space-y-2"></div>
         </div>
 
-        <div class="panel p-4 space-y-3">
-          <div class="text-[16px] font-black">Cambiar de broker</div>
-          <div id="traderQuickSwitchList" class="grid grid-cols-2 gap-2"></div>
-        </div>
-
         <!-- QR DE SALA -->
         <div class="panel p-4 space-y-3">
           <div class="flex items-center justify-between">
@@ -876,24 +871,36 @@
       </div>
 
       <p id="modalResDesc" class="text-[13px] font-semibold leading-relaxed bg-[#F2EDE1] rounded-2xl p-3.5 text-dim">
-        Sube una fotografía de evidencia. La IA examinará el resultado del reto.
+        Haz una foto en directo. La IA examinará la imagen y la hora actual del reto.
       </p>
 
       <div class="space-y-3">
         <div class="space-y-2">
-          <label for="inputResolverArchivo" class="text-[13px] font-bold block">Evidencia fotográfica</label>
-          <input id="inputResolverArchivo" type="file" accept="image/*" class="hidden" onchange="document.getElementById('fileChosen').textContent = this.files[0] ? this.files[0].name : 'Sin archivo'">
-          <label for="inputResolverArchivo" class="btn btn-ghost w-full !py-3 !text-[14px]">
-            <svg class="w-4 h-4"><use href="#i-camera"></use></svg> Seleccionar foto
-          </label>
-          <div id="fileChosen" class="text-[13px] font-semibold text-dim">Sin archivo</div>
+          <div class="flex items-center justify-between">
+            <span class="text-[13px] font-bold">Foto en directo</span>
+            <span class="bg-sun text-ink rounded-full px-2.5 py-1 text-[11px] font-extrabold">SOLO CÁMARA</span>
+          </div>
+          <div class="relative bg-[#071726] rounded-2xl overflow-hidden aspect-[4/3]">
+            <video id="camaraPreview" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+            <img id="fotoCapturaPreview" alt="Foto capturada en directo" class="w-full h-full object-cover hidden">
+            <div id="camaraPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center text-white/60">
+              <svg class="w-9 h-9" aria-hidden="true"><use href="#i-camera"></use></svg>
+              <span id="camaraStatus" class="text-[13px] font-semibold">La cámara se abrirá en directo. No se admiten fotos de galería.</span>
+            </div>
+          </div>
+          <canvas id="camaraCanvas" class="hidden"></canvas>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btnAbrirCamara" onclick="iniciarCamara()" class="btn btn-ghost !py-2.5 !text-[13px]">Abrir cámara</button>
+            <button id="btnCapturarCamara" onclick="capturarFotoCamara()" class="btn btn-paper !py-2.5 !text-[13px] disabled" disabled>Capturar foto</button>
+          </div>
+          <div id="camaraError" class="hidden bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]"></div>
         </div>
 
         <div id="modalResFeedback" class="hidden"></div>
 
         <div class="flex gap-2">
           <button onclick="cerrarModalResolucion()" class="btn btn-ghost flex-1 !py-3 !text-[14px]">Cancelar</button>
-          <button id="btnSubmitResolucion" onclick="resolverMercadoSubmit()" class="btn btn-paper flex-1 !py-3 !text-[14px]">Analizar con IA</button>
+          <button id="btnSubmitResolucion" onclick="resolverMercadoSubmit()" class="btn btn-paper flex-1 !py-3 !text-[14px] disabled" disabled>Analizar con IA</button>
         </div>
       </div>
     </div>
@@ -920,6 +927,10 @@
     let carruselScrollIniciado = false;
     let invitacionGrupoPendiente = new URLSearchParams(window.location.search).get('grupo');
     let invitacionGrupoMostrada = false;
+    let camaraStream = null;
+    let capturaBlob = null;
+    let capturaTimestamp = 0;
+    let capturaPreviewUrl = null;
     const preciosPrevios = {};
 
     const META_HOSTELERIA = 5;
@@ -1063,16 +1074,7 @@
     }
 
     function getUsuarioActual() {
-      return localStorage.getItem('brokers_user') || 'samu';
-    }
-
-    function setUsuarioActual(user) {
-      localStorage.setItem('brokers_user', user.toLowerCase().trim());
-      qrGenerado = false;
-      renderizarUI();
-      mostrarToast(`Broker activo · @${user}`, 'info');
-      reproducirSonido('click');
-      cargarEstado();
+      return localStorage.getItem('brokers_user') || '';
     }
 
     /* ---------- GRUPOS ---------- */
@@ -2198,13 +2200,13 @@
           podium.innerHTML = fila.map(({ u, alto, color, primero }) => {
             const inicial = (u.usuario || '?').charAt(0).toUpperCase();
             return `
-              <button class="flex-1 flex flex-col items-center justify-end gap-1 min-w-0" onclick="setUsuarioActual(${jsarg(u.usuario)})">
+              <div class="flex-1 flex flex-col items-center justify-end gap-1 min-w-0">
                 ${primero ? '<svg class="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-crown"></use></svg>' : ''}
                 <span class="w-10 h-10 rounded-full bg-white shadow-[0_4px_12px_rgba(28,27,34,0.10)] flex items-center justify-center text-[14px] font-black" style="color:${color}; background:${color}1F">${esc(inicial)}</span>
                 <span class="text-[13px] font-extrabold truncate max-w-full mt-0.5">@${esc(u.usuario)}</span>
                 <span class="bg-sun text-ink text-[13px] font-extrabold px-2 py-0.5 rounded-full">${fmt(u.saldo)}</span>
                 <div class="w-full ${alto} rounded-t-2xl mt-1" style="background:${color}"></div>
-              </button>`;
+              </div>`;
           }).join('');
         } else {
           podium.innerHTML = '<div class="text-[13px] font-semibold text-dim py-4">Faltan brokers para el podio.</div>';
@@ -2221,7 +2223,7 @@
           const rango = getRangoBroker(u.saldo);
           const inicial = (u.usuario || '?').charAt(0).toUpperCase();
           return `
-            <div onclick="setUsuarioActual(${jsarg(u.usuario)})" class="flex items-center justify-between gap-2 rounded-2xl px-3 py-3 cursor-pointer ${esYo ? 'bg-[#1B4A6B] text-cream' : 'bg-[#102A43] text-cream'}">
+            <div class="flex items-center justify-between gap-2 rounded-2xl px-3 py-3 ${esYo ? 'bg-[#1B4A6B] text-cream' : 'bg-[#102A43] text-cream'}">
               <div class="flex items-center gap-2.5 min-w-0">
                 <span class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-[14px] font-black shrink-0">${esc(inicial)}</span>
                 <div class="min-w-0">
@@ -2272,28 +2274,6 @@
       });
 
       if (totalApuestasEl) totalApuestasEl.textContent = `${countApuestas} órdenes`;
-
-      const quickSwitchList = document.getElementById('traderQuickSwitchList');
-      if (quickSwitchList) {
-        if (ranking.length === 0) {
-          quickSwitchList.innerHTML = '<div class="text-[13px] font-semibold text-dim col-span-2">Aún no hay brokers en el grupo.</div>';
-        } else {
-        quickSwitchList.innerHTML = ranking.map(u => {
-          const esYo = u.usuario === usuario;
-          const inicial = (u.usuario || '?').charAt(0).toUpperCase();
-          return `
-            <button onclick="setUsuarioActual(${jsarg(u.usuario)})" class="rounded-2xl p-3 text-left ${esYo ? 'bg-brand-soft ring-2 ring-brand' : 'bg-[#F2EDE1]'}">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[13px] font-black text-brand shrink-0">${esc(inicial)}</span>
-                <div class="min-w-0">
-                  <div class="font-extrabold text-[13px] leading-tight">@${esc(u.usuario)}</div>
-                  <div class="text-[13px] font-semibold text-dim mt-0.5">${fmt(u.saldo)} $BROK</div>
-                </div>
-              </div>
-            </button>`;
-        }).join('');
-        }
-      }
 
       const posContainer = document.getElementById('myPositionsList');
       if (posContainer) {
@@ -2379,34 +2359,177 @@
       const icon = document.getElementById('modalResIcon');
       const feedback = document.getElementById('modalResFeedback');
       feedback.classList.add('hidden');
-      document.getElementById('inputResolverArchivo').value = '';
-      document.getElementById('fileChosen').textContent = 'Sin archivo';
+      document.getElementById('camaraError').classList.add('hidden');
+      document.getElementById('btnSubmitResolucion').disabled = true;
+      capturaBlob = null;
+      capturaTimestamp = 0;
 
       if (esVar) {
         icon.innerHTML = '<svg class="w-6 h-6"><use href="#i-gavel"></use></svg>';
         title.textContent = 'Impugnación VAR';
-        desc.textContent = 'Solo el protagonista puede subir una contra-foto para demostrar que sí cumplió y embargar el doble al acusador.';
+        desc.textContent = 'Solo el protagonista. Haz una foto en directo ahora; la IA comparará la prueba con la hora actual y el reto.';
       } else {
         icon.innerHTML = '<svg class="w-6 h-6"><use href="#i-camera"></use></svg>';
         title.textContent = 'Oráculo visual';
-        desc.textContent = 'Sube la foto que demuestre que el amigo ha cumplido su reto. La IA dictará sentencia.';
+        desc.textContent = 'Haz una foto en directo ahora. El oráculo evalúa la imagen y la hora actual; no se admiten fotos de galería.';
       }
 
       document.getElementById('modalResolucion').classList.remove('hidden');
+      iniciarCamara();
     }
 
     function cerrarModalResolucion() {
+      detenerCamara();
+      if (capturaPreviewUrl) {
+        URL.revokeObjectURL(capturaPreviewUrl);
+        capturaPreviewUrl = null;
+      }
+      capturaBlob = null;
+      capturaTimestamp = 0;
+      const preview = document.getElementById('fotoCapturaPreview');
+      if (preview) {
+        preview.removeAttribute('src');
+        preview.classList.add('hidden');
+      }
+      const video = document.getElementById('camaraPreview');
+      if (video) video.classList.add('hidden');
+      const placeholder = document.getElementById('camaraPlaceholder');
+      if (placeholder) placeholder.classList.remove('hidden');
       document.getElementById('modalResolucion').classList.add('hidden');
     }
 
+    function detenerCamara() {
+      if (camaraStream) {
+        camaraStream.getTracks().forEach(track => track.stop());
+        camaraStream = null;
+      }
+      const video = document.getElementById('camaraPreview');
+      if (video) video.srcObject = null;
+    }
+
+    async function iniciarCamara() {
+      const video = document.getElementById('camaraPreview');
+      const placeholder = document.getElementById('camaraPlaceholder');
+      const preview = document.getElementById('fotoCapturaPreview');
+      const error = document.getElementById('camaraError');
+      const status = document.getElementById('camaraStatus');
+      const btnOpen = document.getElementById('btnAbrirCamara');
+      const btnCapture = document.getElementById('btnCapturarCamara');
+      const btnSubmit = document.getElementById('btnSubmitResolucion');
+      if (!video || !placeholder) return;
+
+      error.classList.add('hidden');
+      placeholder.classList.remove('hidden');
+      video.classList.add('hidden');
+      preview.classList.add('hidden');
+      preview.removeAttribute('src');
+      if (capturaPreviewUrl) {
+        URL.revokeObjectURL(capturaPreviewUrl);
+        capturaPreviewUrl = null;
+      }
+      capturaBlob = null;
+      capturaTimestamp = 0;
+      if (btnSubmit) btnSubmit.disabled = true;
+      if (btnCapture) btnCapture.disabled = true;
+      detenerCamara();
+      status.textContent = 'Solicitando cámara…';
+      btnOpen.disabled = true;
+      btnOpen.textContent = 'Abriendo cámara…';
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        error.textContent = 'Este navegador no permite cámara en directo. No se puede resolver con una foto de galería.';
+        error.classList.remove('hidden');
+        status.textContent = 'Cámara no disponible';
+        btnOpen.disabled = false;
+        btnOpen.textContent = 'Reintentar cámara';
+        return;
+      }
+
+      try {
+        camaraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        video.srcObject = camaraStream;
+        video.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+        await video.play();
+        if (btnCapture) btnCapture.disabled = false;
+        btnOpen.textContent = 'Reiniciar cámara';
+        status.textContent = 'Cámara en directo. Captura ahora.';
+      } catch (err) {
+        detenerCamara();
+        video.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        error.textContent = 'No se pudo abrir la cámara. Revisa el permiso del navegador. No se admite subir una foto de la galería.';
+        error.classList.remove('hidden');
+        status.textContent = 'Cámara no disponible';
+        btnOpen.textContent = 'Reintentar cámara';
+      } finally {
+        btnOpen.disabled = false;
+      }
+    }
+
+    async function capturarFotoCamara() {
+      const video = document.getElementById('camaraPreview');
+      const canvas = document.getElementById('camaraCanvas');
+      const preview = document.getElementById('fotoCapturaPreview');
+      const error = document.getElementById('camaraError');
+      const placeholder = document.getElementById('camaraPlaceholder');
+      if (!video || !video.videoWidth || !video.videoHeight) {
+        error.textContent = 'La cámara aún no está lista. Espera un segundo e inténtalo de nuevo.';
+        error.classList.remove('hidden');
+        return;
+      }
+
+      const maxWidth = 1280;
+      const scale = Math.min(1, maxWidth / video.videoWidth);
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const sello = `EN VIVO · ${new Date().toLocaleString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      })}`;
+      const pad = Math.max(12, Math.round(canvas.width * 0.025));
+      const fontSize = Math.max(16, Math.round(canvas.width * 0.035));
+      ctx.fillStyle = 'rgba(7,23,38,0.72)';
+      ctx.fillRect(0, canvas.height - fontSize * 2.2, canvas.width, fontSize * 2.2);
+      ctx.fillStyle = '#FFF9EC';
+      ctx.font = `800 ${fontSize}px Nunito, sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(sello, pad, canvas.height - fontSize);
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.86));
+      if (!blob) {
+        error.textContent = 'No se pudo guardar la captura. Inténtalo de nuevo.';
+        error.classList.remove('hidden');
+        return;
+      }
+      capturaBlob = blob;
+      capturaTimestamp = Date.now();
+      if (capturaPreviewUrl) URL.revokeObjectURL(capturaPreviewUrl);
+      capturaPreviewUrl = URL.createObjectURL(blob);
+      preview.src = capturaPreviewUrl;
+      preview.classList.remove('hidden');
+      video.classList.add('hidden');
+      placeholder.classList.add('hidden');
+      detenerCamara();
+      document.getElementById('btnCapturarCamara').disabled = true;
+      document.getElementById('btnAbrirCamara').textContent = 'Repetir foto';
+      document.getElementById('btnSubmitResolucion').disabled = false;
+      error.classList.add('hidden');
+    }
+
     async function resolverMercadoSubmit() {
-      const fileInput = document.getElementById('inputResolverArchivo');
       const feedback = document.getElementById('modalResFeedback');
       const btn = document.getElementById('btnSubmitResolucion');
 
-      if (!fileInput.files || fileInput.files.length === 0) {
+      if (!capturaBlob || !capturaTimestamp) {
         feedback.className = 'bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]';
-        feedback.textContent = 'Selecciona una imagen de evidencia.';
+        feedback.textContent = 'Haz una foto en directo con la cámara. No se admiten imágenes de galería.';
         feedback.classList.remove('hidden');
         return;
       }
@@ -2416,8 +2539,10 @@
 
       const formData = new FormData();
       formData.append('usuario', getUsuarioActual());
-      formData.append('imagen', fileInput.files[0]);
+      formData.append('imagen', capturaBlob, 'captura_en_vivo.jpg');
       formData.append('es_impugnacion', esImpugnacionActual ? 'true' : 'false');
+      formData.append('captura_ts', String(capturaTimestamp));
+      formData.append('origen', 'camara');
 
       try {
         const res = await fetch(`/api/mercados/${mercadoSeleccionadoId}/resolver`, {

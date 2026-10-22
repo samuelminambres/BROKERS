@@ -3,6 +3,13 @@ import pytest
 from app import app, cargar_db, get_semilla_demo, guardar_db, calcular_precio_lmsr
 import ai_service
 
+
+@pytest.fixture(autouse=True)
+def sin_red_ia(monkeypatch):
+    """Tests deterministas: el oráculo offline rechaza y la CNMV usa su fallback."""
+    monkeypatch.setattr(ai_service, "_get_genai_client", lambda: None)
+
+
 def test_lmsr_math():
     # q_si = 50, q_no = 50 -> 50.0%
     p = calcular_precio_lmsr(50.0, 50.0)
@@ -120,6 +127,13 @@ def test_api_routes():
     assert res_bet.status_code == 200
     assert res_bet.get_json()["nuevo_precio"] > 50.0
 
+    # La apuesta descuenta solo el saldo de este grupo
+    estado_grupo = client.get(f"/api/estado?usuario=samu&grupo={gid}").get_json()
+    assert next(u["saldo"] for u in estado_grupo["ranking"] if u["usuario"] == "samu") == 975.0
+    otro_grupo = client.post("/api/grupos", json={"usuario": "samu", "nombre": "Otro"}).get_json()["grupo"]
+    estado_otro = client.get(f"/api/estado?usuario=samu&grupo={otro_grupo['id']}").get_json()
+    assert next(u["saldo"] for u in estado_otro["ranking"] if u["usuario"] == "samu") == 1000.0
+
     # 8. Protagonist cannot bet either side on their own market
     for tipo in ("SI", "NO"):
         res_fraud = client.post(f"/api/mercados/{mkt_id}/apostar", json={
@@ -136,13 +150,37 @@ def test_api_routes():
     assert b"$BROKERS" in res_home.data
     assert b"Bloomberg" in res_home.data
 
-    # 10. Resolver mercado
+    # 10. Solo se admite una captura de cámara reciente
     import io
-    fake_img = (io.BytesIO(b"fake image data"), "test.jpg")
-    res_solve = client.post(
+    import time
+    stale_img = (io.BytesIO(b"fake image data"), "test.jpg")
+    res_stale = client.post(
         f"/api/mercados/{mkt_id}/resolver",
-        data={"usuario": "samu", "imagen": fake_img, "es_impugnacion": "false"},
+        data={
+            "usuario": "samu", "imagen": stale_img, "es_impugnacion": "false",
+            "captura_ts": "0", "origen": "camara"
+        },
         content_type="multipart/form-data"
     )
+    assert res_stale.status_code == 400
+
+    # 11. Resolver mercado con captura reciente
+    original_oraculo = ai_service.evaluar_oraculo_visual
+    ai_service.evaluar_oraculo_visual = lambda *args, **kwargs: {
+        "cumplido": True, "veredicto": "SI", "confianza": 0.99,
+        "explicacion": "Captura de cámara válida para el test."
+    }
+    try:
+        fake_img = (io.BytesIO(b"fake image data"), "captura.jpg")
+        res_solve = client.post(
+            f"/api/mercados/{mkt_id}/resolver",
+            data={
+                "usuario": "samu", "imagen": fake_img, "es_impugnacion": "false",
+                "captura_ts": str(int(time.time() * 1000)), "origen": "camara"
+            },
+            content_type="multipart/form-data"
+        )
+    finally:
+        ai_service.evaluar_oraculo_visual = original_oraculo
     assert res_solve.status_code == 200
     assert res_solve.get_json()["mercado"]["estado"] == "RESUELTO"

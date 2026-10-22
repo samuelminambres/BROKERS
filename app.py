@@ -60,6 +60,7 @@ def migrar_a_grupos(db):
         "codigo": "PRINCIPAL",
         "creador": usuarios[0] if usuarios else "sistema",
         "miembros": usuarios,
+        "saldos": {uid: db["usuarios"][uid].get("saldo", 1000.0) for uid in usuarios},
         "creado": datetime.now().strftime("%Y-%m-%d")
     }
     db["grupos"] = [grupo]
@@ -74,6 +75,20 @@ def migrar_a_grupos(db):
     return db
 
 
+def migrar_saldos_por_grupo(db):
+    """Añade carteras de 1.000 $BROK a grupos antiguos que no las tuvieran."""
+    changed = False
+    for grupo in db.get("grupos", []):
+        if "saldos" not in grupo:
+            grupo["saldos"] = {}
+            changed = True
+        for uid in grupo.get("miembros", []):
+            if uid not in grupo["saldos"]:
+                grupo["saldos"][uid] = 1000.0
+                changed = True
+    return changed
+
+
 def cargar_db():
     """Lee el estado persistente desde db.json o lo inicializa con los datos semilla."""
     if not os.path.exists(DB_PATH):
@@ -83,8 +98,13 @@ def cargar_db():
     try:
         with open(DB_PATH, "r", encoding="utf-8") as f:
             db = json.load(f)
+        changed = False
         if "grupos" not in db:
             db = migrar_a_grupos(db)
+            changed = True
+        if migrar_saldos_por_grupo(db):
+            changed = True
+        if changed:
             guardar_db(db)
         return db
     except Exception:
@@ -156,11 +176,36 @@ def asegurar_ticker_en_grupo(db, grupo, usuario, nombre=None):
     return amigo
 
 
+def asegurar_saldo_grupo(grupo, usuario, saldo=1000.0):
+    """Cada grupo tiene su propia cartera por usuario."""
+    grupo.setdefault("saldos", {})
+    uid = usuario.strip().lower()
+    if uid not in grupo["saldos"]:
+        grupo["saldos"][uid] = float(saldo)
+    return float(grupo["saldos"][uid])
+
+
+def get_saldo_grupo(grupo, usuario):
+    return asegurar_saldo_grupo(grupo, usuario)
+
+
+def set_saldo_grupo(grupo, usuario, cantidad):
+    grupo.setdefault("saldos", {})
+    grupo["saldos"][usuario.strip().lower()] = max(0.0, float(cantidad))
+
+
+def add_saldo_grupo(grupo, usuario, cantidad):
+    actual = get_saldo_grupo(grupo, usuario)
+    set_saldo_grupo(grupo, usuario, actual + float(cantidad))
+    return get_saldo_grupo(grupo, usuario)
+
+
 def unir_usuario_a_grupo(db, grupo, usuario, nombre=None):
-    """Añade el usuario al grupo y garantiza su ticker dentro de ese grupo."""
+    """Añade el usuario al grupo, su cartera y su ticker dentro de ese grupo."""
     uid = asegurar_usuario(db, usuario, nombre)
     if uid not in grupo["miembros"]:
         grupo["miembros"].append(uid)
+    asegurar_saldo_grupo(grupo, uid)
     asegurar_ticker_en_grupo(db, grupo, uid, nombre)
     return uid
 
@@ -222,11 +267,11 @@ def api_estado():
         noticias = [n for n in db.get("noticias", []) if n.get("grupo") == grupo["id"]]
 
         for uid in grupo.get("miembros", []):
-            data = db.get("usuarios", {}).get(uid, {"nombre": uid, "saldo": 1000.0})
+            data = db.get("usuarios", {}).get(uid, {"nombre": uid})
             ranking.append({
                 "usuario": uid,
                 "nombre": data.get("nombre", uid),
-                "saldo": round(data.get("saldo", 0.0), 2)
+                "saldo": round(get_saldo_grupo(grupo, uid), 2)
             })
         ranking.sort(key=lambda x: x["saldo"], reverse=True)
 
@@ -272,7 +317,6 @@ def api_crear_usuario():
     return jsonify({
         "usuario": uid,
         "nombre": db["usuarios"][uid]["nombre"],
-        "saldo": db["usuarios"][uid]["saldo"],
         "nuevo": not existia
     }), (200 if existia else 201)
 
@@ -297,6 +341,7 @@ def api_crear_grupo():
         "codigo": nuevo_codigo_grupo(db),
         "creador": uid,
         "miembros": [],
+        "saldos": {},
         "creado": datetime.now().strftime("%Y-%m-%d")
     }
     db["grupos"].append(grupo)
@@ -374,6 +419,7 @@ def api_crear_amigo():
     asegurar_usuario(db, uid, nombre)
     if uid not in grupo["miembros"]:
         grupo["miembros"].append(uid)
+    asegurar_saldo_grupo(grupo, uid)
 
     # Noticia de OPV
     titular = f"SALIDA A BOLSA: {ticker} debuta en el parqué con una cotización base de 50.0¢."
@@ -417,7 +463,8 @@ def api_crear_mercado():
     analisis = ai_service.validar_reto_cnmv(creador, ticker, pregunta)
     if not analisis.get("valido", False):
         penalizacion = analisis.get("penalizacion", 10.0)
-        db["usuarios"][creador]["saldo"] = max(0.0, db["usuarios"][creador]["saldo"] - penalizacion)
+        saldo_actual = get_saldo_grupo(grupo, creador)
+        set_saldo_grupo(grupo, creador, saldo_actual - penalizacion)
         
         # Registrar noticia de sanción
         db["noticias"].insert(0, {
@@ -433,7 +480,7 @@ def api_crear_mercado():
             "error": "Contrato rechazado por la CNMV",
             "motivo": analisis.get("motivo", "Reto físicamente imposible o no verificable."),
             "penalizacion": penalizacion,
-            "saldo_actual": db["usuarios"][creador]["saldo"]
+            "saldo_actual": get_saldo_grupo(grupo, creador)
         }), 400
 
     pregunta_final = analisis.get("pregunta_final") or pregunta
@@ -449,6 +496,7 @@ def api_crear_mercado():
         "creador": creador,
         "pregunta": pregunta_final,
         "estado": "ABIERTO",
+        "creado_en": datetime.now().isoformat(timespec="seconds"),
         "aceptado": False,
         "aceptado_por": None,
         "aceptado_en": None,
@@ -560,15 +608,15 @@ def api_apostar(mercado_id):
 
     asegurar_usuario(db, usuario)
 
-    # Comprobación de saldo
-    saldo_usuario = db["usuarios"][usuario]["saldo"]
+    # Comprobación de saldo del grupo
+    saldo_usuario = get_saldo_grupo(grupo, usuario)
     if saldo_usuario < cantidad:
         return jsonify({
-            "error": f"Saldo insuficiente. Tienes {saldo_usuario:.2f} $BROK disponibles."
+            "error": f"Saldo insuficiente. Tienes {saldo_usuario:.2f} $BROK disponibles en este grupo."
         }), 400
 
     # Descontar saldo al inversor
-    db["usuarios"][usuario]["saldo"] -= cantidad
+    set_saldo_grupo(grupo, usuario, saldo_usuario - cantidad)
 
     # Motor LMSR: inyectar liquidez al lado correspondiente
     if tipo == "SI":
@@ -621,7 +669,7 @@ def api_apostar(mercado_id):
     return jsonify({
         "mensaje": "Apuesta procesada con éxito",
         "nuevo_precio": nuevo_precio,
-        "saldo_restante": db["usuarios"][usuario]["saldo"],
+        "saldo_restante": get_saldo_grupo(grupo, usuario),
         "mercado": mercado
     })
 
@@ -630,7 +678,7 @@ def api_apostar(mercado_id):
 def api_resolver(mercado_id):
     """
     Resuelve el mercado mediante foto analizada por el Oráculo Visual (o contra-foto VAR).
-    Multipart form-data: usuario, imagen (File), es_impugnacion ("true"|"false")
+    Multipart form-data: usuario, imagen (captura de cámara), captura_ts (ms), origen="camara", es_impugnacion.
     """
     db = cargar_db()
     mercado = next((m for m in db["mercados"] if m["id"] == mercado_id), None)
@@ -646,8 +694,17 @@ def api_resolver(mercado_id):
     if not es_impugnacion and mercado["estado"] == "ABIERTO" and not mercado.get("aceptado"):
         return jsonify({"error": "El reto todavía no ha sido aceptado por el protagonista."}), 400
 
+    if request.form.get("origen", "").strip().lower() != "camara":
+        return jsonify({"error": "La evidencia debe ser una foto tomada en directo con la cámara."}), 400
+    try:
+        captura_ts = float(request.form.get("captura_ts", ""))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Falta la hora de captura de la foto en directo."}), 400
+    if abs(time.time() * 1000 - captura_ts) > 120000:
+        return jsonify({"error": "La foto no es actual. Vuelve a capturarla en directo."}), 400
+
     if "imagen" not in request.files:
-        return jsonify({"error": "Se requiere subir un archivo de imagen como evidencia"}), 400
+        return jsonify({"error": "Se requiere una captura de cámara como evidencia"}), 400
 
     archivo = request.files["imagen"]
     if archivo.filename == "":
@@ -675,10 +732,16 @@ def api_resolver(mercado_id):
         imagen_bytes=imagen_bytes,
         mime_type=mime_type,
         reto=mercado["pregunta"],
-        es_impugnacion=es_impugnacion
+        es_impugnacion=es_impugnacion,
+        hora_actual=datetime.now().isoformat(timespec="seconds"),
+        captura_ts=captura_ts,
+        reto_creado=mercado.get("creado_en")
     )
 
-    veredicto = veredicto_ia.get("veredicto", "SI")
+    if veredicto_ia.get("error"):
+        return jsonify({"error": veredicto_ia["error"]}), 503
+
+    veredicto = veredicto_ia.get("veredicto", "NO")
     hora_actual = datetime.now().strftime("%H:%M")
 
     # ==========================================
@@ -696,7 +759,7 @@ def api_resolver(mercado_id):
                 # Embargar el doble de lo que apostó o 100 $BROK si no apostó
                 apuesta_tramposo = sum(a["cantidad"] for a in mercado["apuestas"] if a["usuario"] == tramposo and a["tipo"] == "NO")
                 multa_tramposo = max(100.0, apuesta_tramposo * 2.0)
-                db["usuarios"][tramposo]["saldo"] = max(0.0, db["usuarios"][tramposo]["saldo"] - multa_tramposo)
+                set_saldo_grupo(grupo, tramposo, get_saldo_grupo(grupo, tramposo) - multa_tramposo)
                 mercado["tramposo"] = tramposo
 
             # Re-liquidar en favor del protagonista y de los inversores del SI
@@ -705,7 +768,7 @@ def api_resolver(mercado_id):
             
             # Short squeeze payout
             premio_protagonista = (0.30 * mercado["bote_no"]) + 25.0 + (multa_tramposo * 0.5)
-            db["usuarios"][protagonista]["saldo"] += premio_protagonista
+            add_saldo_grupo(grupo, protagonista, premio_protagonista)
 
             # Reparto a inversores del SI
             total_apostado_si = sum(a["cantidad"] for a in mercado["apuestas"] if a["tipo"] == "SI")
@@ -714,7 +777,7 @@ def api_resolver(mercado_id):
                 for a in mercado["apuestas"]:
                     if a["tipo"] == "SI":
                         ganancia = a["cantidad"] + (a["cantidad"] / total_apostado_si) * bote_repartible_si
-                        db["usuarios"][a["usuario"]]["saldo"] += ganancia
+                        add_saldo_grupo(grupo, a["usuario"], ganancia)
 
             # Registrar resolución
             mercado["resolucion"] = {
@@ -722,7 +785,8 @@ def api_resolver(mercado_id):
                 "imagen_url": imagen_url,
                 "veredicto": "SI",
                 "explicacion": f"VAR: Impugnación aceptada. {veredicto_ia.get('explicacion', '')} Multa de {multa_tramposo:.0f} $BROK aplicada al acusador falso.",
-                "hora": hora_actual
+                "hora": hora_actual,
+                "captura_ts": captura_ts
             }
 
             titular = ai_service.generar_titular_wallstreet("var", {
@@ -763,7 +827,8 @@ def api_resolver(mercado_id):
         "veredicto": veredicto,
         "explicacion": veredicto_ia.get("explicacion", ""),
         "confianza": veredicto_ia.get("confianza", 1.0),
-        "hora": hora_actual
+        "hora": hora_actual,
+        "captura_ts": captura_ts
     }
 
     protagonista = mercado["ticker"].replace("$", "").lower()
@@ -779,7 +844,7 @@ def api_resolver(mercado_id):
         # REGLA 4.1: Cumplió el reto -> SHORT SQUEEZE
         # Protagonista cobra +0.30 * bote_no + 25 bono del Banco Central
         premio_protagonista = (0.30 * bote_no) + 25.0
-        db["usuarios"][protagonista]["saldo"] += premio_protagonista
+        add_saldo_grupo(grupo, protagonista, premio_protagonista)
 
         # Inversores de SI recuperan inversión + se reparten 0.70 * bote_no + 25 semilla
         bote_repartible = (0.70 * bote_no) + 25.0
@@ -787,12 +852,12 @@ def api_resolver(mercado_id):
             for a in mercado["apuestas"]:
                 if a["tipo"] == "SI":
                     pago = a["cantidad"] + ((a["cantidad"] / total_si) * bote_repartible)
-                    db["usuarios"][a["usuario"]]["saldo"] += pago
+                    add_saldo_grupo(grupo, a["usuario"], pago)
     else:
         # REGLA 4.2: Falló el reto -> MULTA AL PROTAGONISTA
         # Pierde -0.20 * bote_si de su saldo
         multa_protagonista = 0.20 * bote_si
-        db["usuarios"][protagonista]["saldo"] = max(0.0, db["usuarios"][protagonista]["saldo"] - multa_protagonista)
+        set_saldo_grupo(grupo, protagonista, get_saldo_grupo(grupo, protagonista) - multa_protagonista)
 
         # Inversores del NO recuperan inversión + se reparten bote_si + multa cobrada
         bote_repartible = bote_si + multa_protagonista
@@ -800,7 +865,7 @@ def api_resolver(mercado_id):
             for a in mercado["apuestas"]:
                 if a["tipo"] == "NO":
                     pago = a["cantidad"] + ((a["cantidad"] / total_no) * bote_repartible)
-                    db["usuarios"][a["usuario"]]["saldo"] += pago
+                    add_saldo_grupo(grupo, a["usuario"], pago)
 
     # Titular de resolución con IA
     titular = ai_service.generar_titular_wallstreet("resolucion", {

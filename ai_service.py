@@ -15,7 +15,7 @@ try:
 except ImportError:
     GENAI_AVAILABLE = False
 
-MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 
 
 def _get_genai_client():
@@ -27,7 +27,7 @@ def _get_genai_client():
         return genai.Client(
             api_key=api_key,
             # Corta la llamada si la red se cuelga para que el fallback offline responda.
-            http_options=types.HttpOptions(timeout=8000),
+            http_options=types.HttpOptions(timeout=30000),
         )
     except Exception:
         return None
@@ -37,8 +37,9 @@ def _generar_contenido(client, contents, config=None):
     """Llama a Gemini usando una cadena de modelos resiliente (evita caídas 503 o 404)."""
     candidatos = [
         MODEL_NAME,
-        "gemini-flash-lite-latest",
+        "gemini-3.8-flash",
         "gemini-flash-latest",
+        "gemini-flash-lite-latest",
         "gemini-2.5-flash"
     ]
     ultimo_error = None
@@ -222,26 +223,44 @@ Devuelve solo el titular entre mayúsculas y minúsculas sin comillas adicionale
     return random.choice(titulares)
 
 
-def evaluar_oraculo_visual(imagen_bytes: bytes, mime_type: str, reto: str, es_impugnacion: bool = False) -> dict:
+def evaluar_oraculo_visual(imagen_bytes: bytes, mime_type: str, reto: str, es_impugnacion: bool = False,
+                            hora_actual: str = None, captura_ts: float = None, reto_creado: str = None) -> dict:
     """
-    Usa Gemini Vision para evaluar de forma inapelable si la foto demuestra que se cumplió el reto.
-    Si es_impugnacion=True (VAR), evalúa la contra-prueba presentada por el protagonista.
+    Usa Gemini Vision para evaluar si una captura de cámara demuestra el reto.
+    La hora del servidor, la hora de captura y la antigüedad del reto forman parte de la sentencia.
+    Si no se puede verificar, el fallback rechaza la prueba; nunca aprueba a ciegas.
     """
+    from datetime import datetime
+
     client = _get_genai_client()
+    hora_captura = "desconocida"
+    if captura_ts:
+        try:
+            hora_captura = datetime.fromtimestamp(float(captura_ts) / 1000).isoformat(timespec="seconds")
+        except (ValueError, OSError, TypeError):
+            pass
 
     if client and imagen_bytes:
         try:
             prompt = f"""
-Eres el Oráculo Visual de $BROKERS (mercado de apuestas de retos entre amigos).
-Evalúa esta imagen respecto al siguiente reto:
+Eres el Oráculo Visual de $BROKERS (mercado de apuestas de retos entre amigos universitarios).
 Reto a verificar: "{reto}"
-¿Es impugnación de VAR por parte del protagonista?: {"SÍ (Contra-foto selfie de prueba)" if es_impugnacion else "NO (Primera prueba)"}
+¿Es impugnación de VAR por parte del protagonista?: {"SÍ (Contra-foto de prueba en directo)" if es_impugnacion else "NO (Primera prueba)"}
+Hora actual del servidor: {hora_actual or "desconocida"}
+Hora declarada de la captura: {hora_captura}
+Reto creado: {reto_creado or "desconocido"}
+La imagen DEBE ser una captura de cámara en directo. No es válida una foto de galería, captura de pantalla, meme, logo, imagen de stock o collage.
+La app añade un sello "EN VIVO · fecha/hora" en la parte inferior de la captura. Si el sello no aparece o su hora no es coherente con la hora actual, responde "NO".
 
-Debes decidir con criterio riguroso pero divertido si la imagen demuestra el cumplimiento del reto.
-Si la foto es negra, borrosa, irrelevante o un meme sin relación, el veredicto debe ser "NO".
+Criterio estricto:
+1. Solo responde "SI" si la imagen muestra de forma clara y directa el cumplimiento del reto en el momento actual.
+2. Ten en cuenta la hora actual y la hora de captura: si el reto depende de una hora o contexto temporal y la evidencia no es coherente con ese momento, responde "NO".
+3. Si parece una imagen antigua, de pantalla, descargada, editada o sin relación directa con el reto, responde "NO".
+4. Si hay dudas o la prueba es ambigua, responde "NO" con confianza baja.
+5. Sé riguroso pero divertido en la explicación; menciona explícitamente la comprobación temporal.
 
 Devuelve ÚNICAMENTE un JSON sin bloques markdown:
-{{"cumplido": bool, "veredicto": "SI" o "NO", "confianza": float_entre_0_y_1, "explicacion": "Frase lapidaria explicando el veredicto visual"}}
+{{"cumplido": bool, "veredicto": "SI" o "NO", "confianza": float_entre_0_y_1, "explicacion": "Frase lapidaria explicando el veredicto visual y temporal"}}
 """
             config = types.GenerateContentConfig(response_mime_type="application/json") if GENAI_AVAILABLE else None
             part = types.Part.from_bytes(data=imagen_bytes, mime_type=mime_type or "image/jpeg")
@@ -250,19 +269,11 @@ Devuelve ÚNICAMENTE un JSON sin bloques markdown:
         except Exception:
             pass
 
-    # FALLBACK DETERMINISTA OFFLINE
-    if es_impugnacion:
-        return {
-            "cumplido": True,
-            "veredicto": "SI",
-            "confianza": 0.95,
-            "explicacion": "VAR IA (Offline): La contra-foto del protagonista es irrefutable. Se revierte el veredicto a SÍ."
-        }
-    
-    # Para foto normal offline, aprobamos con explicación cómica
+    # Si no hay conexión con el Oráculo, no se inventa un veredicto.
     return {
-        "cumplido": True,
-        "veredicto": "SI",
-        "confianza": 0.88,
-        "explicacion": "Oráculo Visual (Offline): Prueba gráfica admitida a trámite por el tribunal de amigos."
+        "error": "Oráculo sin conexión: no se pudo verificar la captura en directo. Inténtalo de nuevo.",
+        "cumplido": False,
+        "veredicto": None,
+        "confianza": 0.0,
+        "explicacion": "No hay sentencia visual disponible."
     }

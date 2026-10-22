@@ -12,11 +12,11 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
 - **PROHIBIDO:** No usar React, Node, npm, Webpack, bases de datos SQL externas ni sistemas de login con contraseña.
 - **Estado y Persistencia:** Diccionario global en memoria (`db`) con guardado/lectura automática en un archivo local `db.json` tras cada mutación para no perder datos al recargar Flask.
 - **Rutas Relativas:** En el frontend, TODAS las peticiones `fetch` deben usar rutas relativas (`fetch('/api/...')`), nunca `localhost`, para que funcione directamente al exponerlo por túnel QR (`cloudflared`/`ngrok`).
-- **IA SDK:** Usar exclusivamente `google-genai` (nuevo SDK oficial: `from google import genai`) con el modelo `gemini-2.5-flash`. Tener siempre un *fallback* (try/except) por si falla la API o no hay internet, devolviendo respuestas sarcásticas predefinidas para que la demo nunca se rompa.
+- **IA SDK:** Usar exclusivamente `google-genai` (nuevo SDK oficial: `from google import genai`) con el modelo `gemini-3.8-flash`. Tener siempre un *fallback* (try/except); el oráculo offline nunca inventa un veredicto y devuelve error 503.
 
 ## 3. Reglas de Negocio y Matemáticas (Teoría de Juegos)
 1. **Separación de métricas y grupos:**
-   - `saldo` (Monedas `$BROK`): Cartera global del usuario (todos empiezan con `1000.0`). Determina el ranking dentro de cada grupo.
+   - `saldo` (Monedas `$BROK`): Cartera independiente de cada usuario **dentro de cada grupo** (empieza en `1000.0` por grupo). Determina el ranking de ese grupo.
    - `cotizacion` (`0.0¢` a `100.0¢`): Probabilidad/fiabilidad actual de un amigo o contrato.
    - Cada grupo aísla sus activos, contratos, noticias y ranking. Un usuario puede estar en varios grupos y cada miembro tiene su ticker `$ALIAS` dentro de cada grupo.
 2. **Motor de Precios LMSR (Hanson):**
@@ -37,7 +37,7 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
      - Los inversores del `NO` recuperan su inversión + se reparten proporcionalmente `bote_si` + la multa cobrada al protagonista.
 5. **Seguridad y Antifraude:**
    - **CNMV IA:** Al crear un reto, Gemini evalúa si es físicamente posible y verificable en foto. Si es absurdo (ej. "ir a la Antártida hoy"), devuelve HTTP 400 con motivo cómico y resta `-10 $BROK` al creador. Si está formulado en negativo ("llegar tarde"), lo reescribe en positivo ("llegar puntual").
-   - **Oráculo Visual + VAR (Impugnación):** Al subir foto de resolución, Gemini Vision decide si se cumplió (`SI`/`NO`). Si gana `NO`, el mercado permite pulsar "Impugnar con Contra-Foto (VAR)": si el protagonista sube un selfie demostrando presencia, se revierte a `SI` y se embarga el doble de lo apostado al tramposo que subió la primera foto falsa.
+   - **Oráculo Visual + VAR (Impugnación):** Solo se admite una captura de cámara en directo (`getUserMedia`), con `captura_ts` reciente y `origen=camara`; prohibido el selector de galería. Gemini Vision recibe la hora del servidor, la hora de captura y la fecha del reto. Si gana `NO`, el mercado permite "Impugnar con Contra-Foto (VAR)" al protagonista; si se acepta, se revierte a `SI` y se embarga el doble al tramposo.
 
 ## 4. Contrato Estricto de API (Backend <-> Frontend)
 - `GET /api/estado?usuario=<alias>&grupo=<id>` -> Devuelve `{ grupos, grupo_actual, amigos, mercados, noticias, ranking }` del grupo indicado.
@@ -48,7 +48,7 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
 - `POST /api/mercados` -> Body: `{ creador, ticker, pregunta, grupo }` (Pasa por filtro CNMV IA)
 - `POST /api/mercados/<id>/aceptar` -> Body: `{ usuario }` (Solo el protagonista; abre el mercado)
 - `POST /api/mercados/<id>/apostar` -> Body: `{ usuario, tipo: "SI"|"NO", cantidad: float }`
-- `POST /api/mercados/<id>/resolver` -> `multipart/form-data` con `usuario`, `imagen` (File) y `es_impugnacion` ("true"|"false").
+- `POST /api/mercados/<id>/resolver` -> `multipart/form-data` con `usuario`, `imagen` (captura de cámara), `captura_ts` (epoch ms), `origen="camara"` y `es_impugnacion` ("true"|"false").
 - `POST /api/reset` -> Borra todos los grupos, cuentas, retos y noticias (estado vacío).
 
 ## 5. Diseño de `static/index.html` (Obligatorio)
