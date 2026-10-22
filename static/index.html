@@ -285,8 +285,6 @@
       .marquee, .blink, .flash-up, .flash-down, .view-enter { animation: none !important; }
     }
 
-    #bloqueCarrusel { max-height: 210px; overflow: hidden; transition: max-height .25s ease, opacity .2s ease, transform .25s ease; }
-    #bloqueCarrusel.carrusel-oculto { max-height: 0; opacity: 0; transform: translateY(-6px); }
     .ticker-fade { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); }
     .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
   </style>
@@ -431,19 +429,19 @@
       </div>
     </div>
 
-    <!-- CARRUSEL DE ACTIVOS -->
-    <div id="bloqueCarrusel" class="shrink-0">
-      <div class="flex items-center justify-between px-4 pb-2">
-        <span class="text-[13px] font-extrabold text-cream">Activos en bolsa</span>
-        <span id="carouselCount" class="text-[13px] font-extrabold text-brand bg-brand-soft rounded-full px-2.5 py-1">0</span>
-      </div>
-      <div id="carruselActivos" class="flex gap-2 overflow-x-auto px-4 pt-2 pb-3 snap-x"></div>
-    </div>
-
     <main id="mainViewport" class="flex-1 overflow-y-auto overflow-x-hidden relative" style="padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));">
 
       <!-- ===== PESTAÑA: MERCADO ===== -->
       <section id="viewParque" class="p-4 space-y-3 view-enter">
+
+        <!-- CARRUSEL DE ACTIVOS -->
+            <div id="bloqueCarrusel" class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[13px] font-extrabold text-cream">Activos en bolsa</span>
+            <span id="carouselCount" class="text-[13px] font-extrabold text-brand bg-brand-soft rounded-full px-2.5 py-1">0</span>
+          </div>
+          <div id="carruselActivos" class="flex gap-2 overflow-x-auto pt-2 pb-1 snap-x"></div>
+        </div>
 
         <div class="flex items-center justify-between gap-3">
           <div class="min-w-0">
@@ -860,7 +858,6 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       iniciarChart();
-      iniciarCarruselScroll();
       iniciarOnboarding();
       cargarEstado();
       setInterval(cargarEstado, 3000);
@@ -1001,20 +998,6 @@
       return { title: 'El Lobo de Wall Street' };
     }
 
-    /* ---------- CARRUSEL AL SCROLL ---------- */
-    function iniciarCarruselScroll() {
-      const main = document.getElementById('mainViewport');
-      const bloque = document.getElementById('bloqueCarrusel');
-      if (!main || !bloque) return;
-      let oculto = false;
-      main.addEventListener('scroll', () => {
-        if (main.scrollTop > 4 && !oculto) {
-          oculto = true;
-          bloque.classList.add('carrusel-oculto');
-        }
-      }, { passive: true });
-    }
-
     /* ---------- NAVEGACIÓN ---------- */
     function cambiarTab(tab) {
       tabActiva = tab;
@@ -1037,12 +1020,6 @@
 
       const detalle = document.getElementById('viewTrading');
       if (detalle) detalle.classList.add('hidden');
-
-      const carrusel = document.getElementById('bloqueCarrusel');
-      if (carrusel) {
-        carrusel.classList.toggle('hidden', tab !== 'parque');
-        if (tab === 'parque') carrusel.classList.remove('carrusel-oculto');
-      }
 
       const main = document.getElementById('mainViewport');
       if (main) main.scrollTop = 0;
@@ -1068,9 +1045,6 @@
         void detalle.offsetWidth;
         detalle.classList.add('view-enter');
       }
-
-      const carrusel = document.getElementById('bloqueCarrusel');
-      if (carrusel) carrusel.classList.add('hidden');
 
       tabActiva = 'detalle';
       const main = document.getElementById('mainViewport');
