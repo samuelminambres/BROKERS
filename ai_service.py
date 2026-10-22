@@ -148,10 +148,12 @@ Responde ÚNICAMENTE en formato JSON plano sin bloques markdown:
 
 def generar_titular_wallstreet(evento_tipo: str, datos: dict) -> str:
     """
-    Genera un titular satírico sensacionalista estilo Bloomberg / Wall Street Journal
-    para la cinta de noticias en vivo.
+    Genera un titular satírico sensacionalista estilo Bloomberg / Wall Street Journal.
+    Por defecto usa el banco local para no gastar cuota ni alargar la creación de retos.
+    Actívalo con GEMINI_TITULARES=1.
     """
-    client = _get_genai_client()
+    usar_ia = os.environ.get("GEMINI_TITULARES", "0").strip() == "1"
+    client = _get_genai_client() if usar_ia else None
     ticker = datos.get("ticker", "$AMIGO")
     usuario = datos.get("usuario", "Un trader")
     cantidad = datos.get("cantidad", 0)

@@ -2084,7 +2084,7 @@
         abrirDetalle(data.mercado.id);
       } catch (err) {
         feedback.className = 'bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]';
-        feedback.textContent = 'No se pudo contactar con la CNMV. Inténtalo de nuevo.';
+        feedback.textContent = 'No se pudo contactar con el servidor. Revisa la conexión o el túnel e inténtalo de nuevo.';
         feedback.classList.remove('hidden');
       } finally {
         btn.disabled = false;
