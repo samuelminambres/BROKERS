@@ -2,6 +2,10 @@ import os
 import json
 import random
 import re
+from dotenv import load_dotenv
+
+# Cargar automáticamente variables de entorno desde .env si existe
+load_dotenv()
 
 # Intento de importar el SDK oficial google-genai
 try:
@@ -10,6 +14,8 @@ try:
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
+
+MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 
 
 def _get_genai_client():
@@ -21,6 +27,30 @@ def _get_genai_client():
         return genai.Client(api_key=api_key)
     except Exception:
         return None
+
+
+def _generar_contenido(client, contents, config=None):
+    """Llama a Gemini usando una cadena de modelos resiliente (evita caídas 503 o 404)."""
+    candidatos = [
+        MODEL_NAME,
+        "gemini-flash-lite-latest",
+        "gemini-flash-latest",
+        "gemini-2.5-flash"
+    ]
+    ultimo_error = None
+    for modelo in candidatos:
+        if not modelo:
+            continue
+        try:
+            return client.models.generate_content(
+                model=modelo,
+                contents=contents,
+                config=config
+            )
+        except Exception as e:
+            ultimo_error = e
+            continue
+    raise ultimo_error or RuntimeError("Todos los modelos de Gemini fallaron.")
 
 
 def _extraer_json(raw_text: str) -> dict:
@@ -65,11 +95,7 @@ Responde ÚNICAMENTE en formato JSON plano sin bloques markdown:
 {{"valido": bool, "motivo": str, "penalizacion": float, "pregunta_final": str, "reescrito": bool, "comentario": str}}
 """
             config = types.GenerateContentConfig(response_mime_type="application/json") if GENAI_AVAILABLE else None
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=config
-            )
+            response = _generar_contenido(client, contents=prompt, config=config)
             return _extraer_json(response.text)
         except Exception:
             pass
@@ -144,10 +170,7 @@ Contexto reto: {pregunta}
 Ejemplo: "PÁNICO EN EL PARQUÉ: $SAMU se desploma un 40% tras sonar su despertador por tercera vez."
 Devuelve solo el titular entre mayúsculas y minúsculas sin comillas adicionales.
 """
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt
-            )
+            response = _generar_contenido(client, contents=prompt)
             return response.text.strip().replace('"', '')
         except Exception:
             pass
@@ -218,11 +241,7 @@ Devuelve ÚNICAMENTE un JSON sin bloques markdown:
 """
             config = types.GenerateContentConfig(response_mime_type="application/json") if GENAI_AVAILABLE else None
             part = types.Part.from_bytes(data=imagen_bytes, mime_type=mime_type or "image/jpeg")
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[part, prompt],
-                config=config
-            )
+            response = _generar_contenido(client, contents=[part, prompt], config=config)
             return _extraer_json(response.text)
         except Exception:
             pass
