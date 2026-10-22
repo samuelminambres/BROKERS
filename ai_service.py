@@ -15,7 +15,8 @@ try:
 except ImportError:
     GENAI_AVAILABLE = False
 
-MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
+VISION_MODEL_NAME = os.environ.get("GEMINI_VISION_MODEL", "gemini-flash-lite-latest")
 
 
 def _get_genai_client():
@@ -27,21 +28,15 @@ def _get_genai_client():
         return genai.Client(
             api_key=api_key,
             # Corta la llamada si la red se cuelga para que el fallback offline responda.
-            http_options=types.HttpOptions(timeout=30000),
+            http_options=types.HttpOptions(timeout=12000),
         )
     except Exception:
         return None
 
 
-def _generar_contenido(client, contents, config=None):
-    """Llama a Gemini usando una cadena de modelos resiliente (evita caídas 503 o 404)."""
-    candidatos = [
-        MODEL_NAME,
-        "gemini-3.8-flash",
-        "gemini-flash-latest",
-        "gemini-flash-lite-latest",
-        "gemini-2.5-flash"
-    ]
+def _generar_contenido(client, contents, config=None, modelo=None):
+    """Llama a Gemini con el modelo rápido elegido (texto o visión)."""
+    candidatos = [modelo or MODEL_NAME]
     ultimo_error = None
     for modelo in candidatos:
         if not modelo:
@@ -264,7 +259,7 @@ Devuelve ÚNICAMENTE un JSON sin bloques markdown:
 """
             config = types.GenerateContentConfig(response_mime_type="application/json") if GENAI_AVAILABLE else None
             part = types.Part.from_bytes(data=imagen_bytes, mime_type=mime_type or "image/jpeg")
-            response = _generar_contenido(client, contents=[part, prompt], config=config)
+            response = _generar_contenido(client, contents=[part, prompt], config=config, modelo=VISION_MODEL_NAME)
             return _extraer_json(response.text)
         except Exception:
             pass

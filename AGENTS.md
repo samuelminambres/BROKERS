@@ -12,7 +12,7 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
 - **PROHIBIDO:** No usar React, Node, npm, Webpack, bases de datos SQL externas ni sistemas de login con contraseña.
 - **Estado y Persistencia:** Diccionario global en memoria (`db`) con guardado/lectura automática en un archivo local `db.json` tras cada mutación para no perder datos al recargar Flask.
 - **Rutas Relativas:** En el frontend, TODAS las peticiones `fetch` deben usar rutas relativas (`fetch('/api/...')`), nunca `localhost`, para que funcione directamente al exponerlo por túnel QR (`cloudflared`/`ngrok`).
-- **IA SDK:** Usar exclusivamente `google-genai` (nuevo SDK oficial: `from google import genai`) con el modelo `gemini-3.8-flash`. Tener siempre un *fallback* (try/except); el oráculo offline nunca inventa un veredicto y devuelve error 503.
+- **IA SDK:** Usar exclusivamente `google-genai` (nuevo SDK oficial: `from google import genai`). Texto/CNMV: `gemini-3.5-flash-lite`. Visión/oráculo: `gemini-flash-lite-latest`. Tener siempre un *fallback* (try/except); el oráculo offline nunca inventa un veredicto y devuelve error 503.
 
 ## 3. Reglas de Negocio y Matemáticas (Teoría de Juegos)
 1. **Separación de métricas y grupos:**
