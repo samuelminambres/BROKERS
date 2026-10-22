@@ -18,7 +18,8 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
 1. **Separación de métricas y grupos:**
    - `saldo` (Monedas `$BROK`): Cartera independiente de cada usuario **dentro de cada grupo** (empieza en `1000.0` por grupo). Determina el ranking de ese grupo.
    - `cotizacion` (`0.0¢` a `100.0¢`): Probabilidad/fiabilidad actual de un amigo o contrato.
-   - Cada grupo aísla sus activos, contratos, noticias y ranking. Un usuario puede estar en varios grupos y cada miembro tiene su ticker `$ALIAS` dentro de cada grupo.
+   - Cada grupo aísla sus activos, contratos, noticias, ranking y cartera. Un usuario puede estar en varios grupos y cada miembro tiene su ticker `$ALIAS` dentro de cada grupo.
+   - Cada navegador mantiene un único broker (alias). No existe selector para encarnar a otro miembro del ranking.
 2. **Motor de Precios LMSR (Hanson):**
    - Liquidez constante `B = 100.0`.
    - Todo mercado nace con liquidez semilla del Banco Central: `q_si = 50.0`, `q_no = 50.0`.
