@@ -778,7 +778,7 @@
 
       <div class="text-[13px] font-bold text-dim mt-3">Acceso al parqué · OPV</div>
       <h2 class="text-[30px] font-black leading-tight mt-1">Entra al mercado</h2>
-      <p class="text-[14px] font-semibold text-dim mt-2 leading-relaxed">Elige tu alias. El Banco Central te ingresa <b class="text-paper">1.000 $BROK</b> al abrir cuenta.</p>
+      <p class="text-[14px] font-semibold text-dim mt-2 leading-relaxed">Elige tu alias. El Banco Central te ingresa <b class="text-paper">1.000 $BROK</b> y tu alias se convierte en tu ticker en bolsa.</p>
 
       <form id="formOnboarding" class="mt-5 space-y-2.5" onsubmit="entrarAlParque(event)">
         <label for="inputAlias" class="text-[13px] font-bold text-dim block">Tu alias</label>
@@ -977,12 +977,15 @@
       if (btn) btn.disabled = true;
       localStorage.setItem('brokers_user', alias);
 
+      let ticker = '$' + alias.toUpperCase();
       try {
-        await fetch('/api/usuarios', {
+        const res = await fetch('/api/usuarios', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ usuario: alias, nombre: alias })
         });
+        const data = await res.json();
+        if (data.ticker) ticker = data.ticker;
       } catch (err) { /* el primer reto o apuesta lo registrará igualmente */ }
 
       if (btn) btn.disabled = false;
@@ -990,7 +993,7 @@
       renderizarUI();
       await cargarEstado();
       reproducirSonido('jackpot');
-      mostrarToast(`Cuenta abierta · @${alias} recibe 1.000 $BROK`, 'success');
+      mostrarToast(`Cuenta abierta · ${ticker} · 1.000 $BROK`, 'success');
     }
 
     function getUsuarioActual() {

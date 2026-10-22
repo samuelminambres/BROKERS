@@ -155,12 +155,23 @@ def api_crear_usuario():
 
     existia = usuario in db["usuarios"]
     uid = asegurar_usuario(db, usuario, nombre)
+
+    ticker = f"${uid.upper()}"
+    if not any(a["ticker"] == ticker for a in db["amigos"]):
+        db["amigos"].append({
+            "ticker": ticker,
+            "nombre": db["usuarios"][uid]["nombre"],
+            "descripcion": "Broker registrado en el parqué. Cotización inicial de 50.0¢.",
+            "cotizacion": 50.0
+        })
+
     guardar_db(db)
 
     return jsonify({
         "usuario": uid,
         "nombre": db["usuarios"][uid]["nombre"],
         "saldo": db["usuarios"][uid]["saldo"],
+        "ticker": ticker,
         "nuevo": not existia
     }), (200 if existia else 201)
 

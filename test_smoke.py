@@ -27,6 +27,24 @@ def test_ai_service_fallback():
     titular = ai_service.generar_titular_wallstreet("apuesta", {"ticker": "$SAMU", "usuario": "mito", "cantidad": 50})
     assert isinstance(titular, str) and len(titular) > 5
 
+def test_registro_usuario_crea_ticker():
+    client = app.test_client()
+    client.post("/api/reset")
+
+    res = client.post("/api/usuarios", json={"usuario": "pepe", "nombre": "Pepe"})
+    assert res.status_code == 201
+    assert res.get_json()["ticker"] == "$PEPE"
+
+    estado = client.get("/api/estado").get_json()
+    assert any(a["ticker"] == "$PEPE" for a in estado["amigos"])
+    assert any(u["usuario"] == "pepe" for u in estado["ranking"])
+
+    # Repetir el registro no duplica el ticker
+    assert client.post("/api/usuarios", json={"usuario": "pepe", "nombre": "Pepe"}).status_code == 200
+    estado = client.get("/api/estado").get_json()
+    assert sum(a["ticker"] == "$PEPE" for a in estado["amigos"]) == 1
+
+
 def test_api_routes():
     client = app.test_client()
     
