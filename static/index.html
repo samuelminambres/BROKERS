@@ -434,6 +434,19 @@
       <!-- ===== PESTAÑA: MERCADO ===== -->
       <section id="viewParque" class="p-4 space-y-3 view-enter">
 
+        <button onclick="abrirGrupos()" class="w-full flex items-center justify-between gap-2 bg-[#102A43] text-cream rounded-2xl px-3 py-2.5 text-left">
+          <span class="flex items-center gap-2 min-w-0">
+            <span class="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" aria-hidden="true"><use href="#i-coin"></use></svg>
+            </span>
+            <span class="min-w-0">
+              <span class="block text-[11px] font-bold text-white/50">Tu grupo</span>
+              <span id="grupoActualNombre" class="block text-[14px] font-black truncate">Sin grupo</span>
+            </span>
+          </span>
+          <span class="text-[13px] font-extrabold text-brand shrink-0">Cambiar</span>
+        </button>
+
         <!-- CARRUSEL DE ACTIVOS -->
             <div id="bloqueCarrusel" class="space-y-2">
           <div class="flex items-center justify-between">
@@ -731,6 +744,14 @@
         </div>
 
         <div class="panel p-4 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[16px] font-black">Tus grupos</span>
+            <button onclick="abrirGrupos()" class="text-[13px] font-extrabold text-brand">Gestionar</button>
+          </div>
+          <div id="perfilGruposList" class="space-y-2"></div>
+        </div>
+
+        <div class="panel p-4 space-y-3">
           <div class="text-[16px] font-black">Cambiar de broker</div>
           <div id="traderQuickSwitchList" class="grid grid-cols-2 gap-2"></div>
         </div>
@@ -738,14 +759,14 @@
         <!-- QR DE SALA -->
         <div class="panel p-4 space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-[16px] font-black">Invita a la sala</span>
+            <span class="text-[16px] font-black">Invita al grupo</span>
             <span class="text-[13px] font-extrabold text-brand bg-brand-soft rounded-full px-2.5 py-1">OPV</span>
           </div>
           <div class="flex gap-3 items-center">
             <div id="qrInvitacion" class="bg-white p-2 rounded-2xl w-[136px] h-[136px] shrink-0 flex items-center justify-center text-black text-[13px] text-center leading-tight"></div>
             <div class="flex-1 min-w-0 space-y-2">
               <div class="text-[17px] font-black leading-tight">Trae refuerzos</div>
-              <p class="text-[13px] font-semibold text-dim leading-snug">Escanea el QR para entrar al parqué. Todos empiezan con 1.000 $BROK.</p>
+              <p class="text-[13px] font-semibold text-dim leading-snug">Escanea el QR o comparte el código. Entrarán directamente a este grupo.</p>
               <button onclick="copiarEnlaceSala()" class="btn btn-paper w-full !py-2 !text-[13px]">Copiar enlace</button>
               <div id="shareLink" class="text-[13px] font-semibold text-dim truncate"></div>
             </div>
@@ -757,7 +778,7 @@
           <div id="myPositionsList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
         </div>
 
-        <button onclick="resetearMercado()" class="btn btn-ghost w-full !py-3 !text-[14px]">↺ Reiniciar parqué demo</button>
+        <button onclick="resetearMercado()" class="btn btn-ghost w-full !py-3 !text-[14px]">↺ Reiniciar todos los grupos</button>
 
         <p class="text-center text-[11px] font-semibold text-white/40 leading-relaxed">
           Moneda virtual $BROK · sin dinero real · solo prendas sociales
@@ -795,7 +816,7 @@
 
       <div class="text-[13px] font-bold text-dim mt-3">Acceso al parqué · OPV</div>
       <h2 class="text-[30px] font-black leading-tight mt-1">Entra al mercado</h2>
-      <p class="text-[14px] font-semibold text-dim mt-2 leading-relaxed">Elige tu alias. El Banco Central te ingresa <b class="text-paper">1.000 $BROK</b> y tu alias se convierte en tu ticker en bolsa.</p>
+      <p class="text-[14px] font-semibold text-dim mt-2 leading-relaxed">Elige tu alias. El Banco Central te ingresa <b class="text-paper">1.000 $BROK</b>; después creas o te unes a un grupo y tu alias cotiza como ticker.</p>
 
       <form id="formOnboarding" class="mt-5 space-y-2.5" onsubmit="entrarAlParque(event)">
         <label for="inputAlias" class="text-[13px] font-bold text-dim block">Tu alias</label>
@@ -806,6 +827,34 @@
 
       <div class="flex items-center justify-between mt-5 text-[13px] font-bold text-dim">
         <span>Moneda virtual</span><span>0 € de riesgo</span><span>ETSE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL GRUPOS ================= -->
+  <div id="gruposModal" class="fixed inset-0 bg-[#071726]/55 backdrop-blur-sm z-[75] flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-white max-w-sm w-full p-5 rounded-t-[28px] sm:rounded-[28px] shadow-[0_20px_60px_rgba(28,27,34,0.25)] max-h-[90vh] overflow-y-auto space-y-4">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-[13px] font-bold text-dim">Tus salas</div>
+          <h3 class="text-[24px] font-black leading-tight">Grupos</h3>
+          <p class="text-[13px] font-semibold text-dim mt-1">Cada grupo tiene su propio parqué. Puedes estar en varios.</p>
+        </div>
+        <button onclick="cerrarGrupos()" class="text-dim hover:text-paper text-2xl leading-none p-1" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <div id="listaGrupos" class="space-y-2"></div>
+
+      <div class="border-t border-[#E8E1D2] pt-4 space-y-2.5">
+        <div class="text-[15px] font-black">Crear grupo</div>
+        <input id="inputNuevoGrupo" type="text" maxlength="30" autocomplete="off" placeholder="Piso, Clase, ..." class="field text-[16px] font-bold">
+        <button id="btnCrearGrupo" onclick="crearGrupo()" class="btn btn-paper w-full !py-3 !text-[14px]">Crear grupo</button>
+      </div>
+
+      <div class="border-t border-[#E8E1D2] pt-4 space-y-2.5">
+        <div class="text-[15px] font-black">Unirme con código</div>
+        <input id="inputCodigoGrupo" type="text" maxlength="12" autocomplete="off" placeholder="Ej. 4A9C2F" class="field text-[16px] font-bold uppercase">
+        <button id="btnUnirseGrupo" onclick="unirseGrupo()" class="btn btn-ghost w-full !py-3 !text-[14px]">Unirme al grupo</button>
       </div>
     </div>
   </div>
@@ -857,7 +906,7 @@
 
   <!-- ================= LÓGICA ================= -->
   <script>
-    let estadoGlobal = { amigos: [], mercados: [], noticias: [], ranking: [] };
+    let estadoGlobal = { grupos: [], grupo_actual: null, amigos: [], mercados: [], noticias: [], ranking: [] };
     let mercadoSeleccionadoId = null;
     let chartInstance = null;
     let modoGraficaActual = 'CONTRATO';
@@ -869,6 +918,8 @@
     let audioCtx = null;
     let qrGenerado = false;
     let carruselScrollIniciado = false;
+    let invitacionGrupoPendiente = new URLSearchParams(window.location.search).get('grupo');
+    let invitacionGrupoMostrada = false;
     const preciosPrevios = {};
 
     const META_HOSTELERIA = 5;
@@ -994,23 +1045,21 @@
       if (btn) btn.disabled = true;
       localStorage.setItem('brokers_user', alias);
 
-      let ticker = '$' + alias.toUpperCase();
       try {
-        const res = await fetch('/api/usuarios', {
+        await fetch('/api/usuarios', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ usuario: alias, nombre: alias })
         });
-        const data = await res.json();
-        if (data.ticker) ticker = data.ticker;
-      } catch (err) { /* el primer reto o apuesta lo registrará igualmente */ }
+      } catch (err) { /* el grupo registrará la cuenta igualmente */ }
 
       if (btn) btn.disabled = false;
       document.getElementById('onboardingModal').classList.add('hidden');
       renderizarUI();
       await cargarEstado();
       reproducirSonido('jackpot');
-      mostrarToast(`Cuenta abierta · ${ticker} · 1.000 $BROK`, 'success');
+      const tieneGrupos = (estadoGlobal.grupos || []).length > 0;
+      mostrarToast(tieneGrupos ? `Cuenta abierta · @${alias}` : `Cuenta abierta · @${alias} · elige tu grupo`, 'success');
     }
 
     function getUsuarioActual() {
@@ -1019,8 +1068,162 @@
 
     function setUsuarioActual(user) {
       localStorage.setItem('brokers_user', user.toLowerCase().trim());
+      qrGenerado = false;
       renderizarUI();
       mostrarToast(`Broker activo · @${user}`, 'info');
+      reproducirSonido('click');
+      cargarEstado();
+    }
+
+    /* ---------- GRUPOS ---------- */
+    function getGrupoActualId() {
+      return localStorage.getItem('brokers_grupo') || '';
+    }
+
+    function getGrupoActual() {
+      const id = getGrupoActualId();
+      return (estadoGlobal.grupos || []).find(g => g.id === id) || estadoGlobal.grupo_actual || null;
+    }
+
+    function setGrupoActualId(id) {
+      if (id) localStorage.setItem('brokers_grupo', id);
+      else localStorage.removeItem('brokers_grupo');
+    }
+
+    function renderizarGruposUI() {
+      const grupos = estadoGlobal.grupos || [];
+      const actual = getGrupoActual();
+
+      const chip = document.getElementById('grupoActualNombre');
+      if (chip) chip.textContent = actual ? actual.nombre : 'Sin grupo';
+
+      const fila = (g) => {
+        const esActual = actual && g.id === actual.id;
+        const miembros = (g.miembros || []).length;
+        return `
+          <button onclick="cambiarGrupo(${jsarg(g.id)})" class="w-full rounded-2xl p-3 text-left ${esActual ? 'bg-brand-soft ring-2 ring-brand' : 'bg-[#F2EDE1]'}">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-extrabold text-[14px] truncate">${esc(g.nombre)}</span>
+              ${esActual ? '<span class="tag tag-bull shrink-0">Actual</span>' : ''}
+            </div>
+            <div class="text-[13px] font-semibold text-dim mt-0.5">${miembros} miembros · código ${esc(g.codigo || '—')}</div>
+          </button>`;
+      };
+
+      const perfil = document.getElementById('perfilGruposList');
+      if (perfil) {
+        perfil.innerHTML = grupos.length
+          ? grupos.map(fila).join('')
+          : '<div class="text-[13px] font-semibold text-dim">Aún no estás en ningún grupo. Crea uno o únete con un código.</div>';
+      }
+
+      const lista = document.getElementById('listaGrupos');
+      if (lista) {
+        lista.innerHTML = grupos.length
+          ? grupos.map(fila).join('')
+          : '<div class="bg-[#F2EDE1] rounded-2xl p-3 text-[13px] font-semibold text-dim">Aún no hay grupos. Crea tu primer parqué abajo.</div>';
+      }
+    }
+
+    function abrirGrupos() {
+      if (!localStorage.getItem('brokers_user')) return;
+      renderizarGruposUI();
+      if (invitacionGrupoPendiente) {
+        const input = document.getElementById('inputCodigoGrupo');
+        if (input) input.value = invitacionGrupoPendiente.toUpperCase();
+      }
+      document.getElementById('gruposModal')?.classList.remove('hidden');
+    }
+
+    function cerrarGrupos() {
+      document.getElementById('gruposModal')?.classList.add('hidden');
+      invitacionGrupoMostrada = true;
+    }
+
+    async function crearGrupo() {
+      const input = document.getElementById('inputNuevoGrupo');
+      const btn = document.getElementById('btnCrearGrupo');
+      const nombre = (input?.value || '').trim();
+      if (nombre.length < 2) {
+        mostrarToast('Ponle un nombre de al menos 2 caracteres', 'error');
+        return;
+      }
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch('/api/grupos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario: getUsuarioActual(), nombre })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          mostrarToast(data.error || 'No se pudo crear el grupo', 'error');
+          return;
+        }
+        if (input) input.value = '';
+        setGrupoActualId(data.grupo.id);
+        invitacionGrupoPendiente = null;
+        cerrarGrupos();
+        mercadoSeleccionadoId = null;
+        qrGenerado = false;
+        await cargarEstado();
+        reproducirSonido('jackpot');
+        mostrarToast(`Grupo ${data.grupo.nombre} creado · $${getUsuarioActual().toUpperCase()} cotiza`, 'success');
+      } catch (err) {
+        mostrarToast('Error de conexión con el parqué', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function unirseGrupo() {
+      const input = document.getElementById('inputCodigoGrupo');
+      const btn = document.getElementById('btnUnirseGrupo');
+      const codigo = (input?.value || '').trim().toUpperCase();
+      if (!codigo) {
+        mostrarToast('Escribe el código del grupo', 'error');
+        return;
+      }
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch('/api/grupos/unirse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario: getUsuarioActual(), codigo })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          mostrarToast(data.error || 'No se pudo unir al grupo', 'error');
+          return;
+        }
+        if (input) input.value = '';
+        setGrupoActualId(data.grupo.id);
+        invitacionGrupoPendiente = null;
+        const url = new URL(window.location.href);
+        url.searchParams.delete('grupo');
+        window.history.replaceState({}, '', url);
+        cerrarGrupos();
+        mercadoSeleccionadoId = null;
+        qrGenerado = false;
+        await cargarEstado();
+        reproducirSonido('jackpot');
+        mostrarToast(`Te has unido a ${data.grupo.nombre}`, 'success');
+      } catch (err) {
+        mostrarToast('Error de conexión con el parqué', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function cambiarGrupo(id) {
+      if (!id) return;
+      setGrupoActualId(id);
+      mercadoSeleccionadoId = null;
+      qrGenerado = false;
+      Object.keys(preciosPrevios).forEach(k => delete preciosPrevios[k]);
+      cerrarGrupos();
+      cambiarTab('parque');
+      cargarEstado();
       reproducirSonido('click');
     }
 
@@ -1128,20 +1331,48 @@
     /* ---------- ESTADO ---------- */
     async function cargarEstado(manual = false) {
       try {
-        const res = await fetch('/api/estado');
+        const usuario = getUsuarioActual();
+        const grupo = getGrupoActualId();
+        const params = new URLSearchParams({ usuario });
+        if (grupo) params.set('grupo', grupo);
+        const res = await fetch(`/api/estado?${params.toString()}`);
         if (!res.ok) throw new Error('Fallo al obtener estado');
         estadoGlobal = await res.json();
+        if (estadoGlobal.grupo_actual) {
+          if (getGrupoActualId() !== estadoGlobal.grupo_actual.id) qrGenerado = false;
+          setGrupoActualId(estadoGlobal.grupo_actual.id);
+        }
         renderizarUI();
-        if ((estadoGlobal.ranking || []).length === 0) {
-          const input = document.getElementById('inputAlias');
-          const alias = localStorage.getItem('brokers_user');
-          if (alias && input && !input.value) input.value = alias;
+
+        const tieneAlias = !!localStorage.getItem('brokers_user');
+        if (!tieneAlias) {
           document.getElementById('onboardingModal')?.classList.remove('hidden');
+        } else if (!(estadoGlobal.grupos || []).length) {
+          abrirGrupos();
+        } else {
+          quizasAbrirInvitacion();
         }
         if (manual) mostrarToast('Parqué sincronizado', 'info');
       } catch (err) {
         console.error('Error sincronizando:', err);
       }
+    }
+
+    function quizasAbrirInvitacion() {
+      if (!invitacionGrupoPendiente || invitacionGrupoMostrada) return;
+      const codigo = invitacionGrupoPendiente.toUpperCase();
+      const grupo = (estadoGlobal.grupos || []).find(g => g.codigo === codigo);
+      if (grupo) {
+        setGrupoActualId(grupo.id);
+        invitacionGrupoPendiente = null;
+        const url = new URL(window.location.href);
+        url.searchParams.delete('grupo');
+        window.history.replaceState({}, '', url);
+        cargarEstado();
+        return;
+      }
+      abrirGrupos();
+      invitacionGrupoMostrada = true;
     }
 
     function renderizarUI() {
@@ -1157,6 +1388,7 @@
       renderizarNoticias();
       renderizarCarteraView();
       actualizarSelectoresAmigos();
+      renderizarGruposUI();
     }
 
     /* ---------- CABECERA ---------- */
@@ -1789,6 +2021,14 @@
       const texto = document.getElementById('inputNuevoRetoTexto').value.trim();
       const feedback = document.getElementById('cnmvFeedbackBox');
       const btn = document.getElementById('btnCrearMercadoSubmit');
+      const grupo = getGrupoActualId();
+
+      if (!grupo) {
+        feedback.className = 'bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]';
+        feedback.textContent = 'Elige o crea un grupo antes de publicar un reto.';
+        feedback.classList.remove('hidden');
+        return;
+      }
 
       if (!ticker) {
         feedback.className = 'bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]';
@@ -1814,7 +2054,7 @@
         const res = await fetch('/api/mercados', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ creador, ticker, pregunta })
+          body: JSON.stringify({ creador, ticker, pregunta, grupo })
         });
         const data = await res.json();
 
@@ -1854,6 +2094,14 @@
       const descripcion = document.getElementById('inputNuevoAmigoDesc').value.trim();
       const feedback = document.getElementById('ipoFeedbackBox');
       const btn = document.getElementById('btnCrearAmigoSubmit');
+      const grupo = getGrupoActualId();
+
+      if (!grupo) {
+        feedback.className = 'bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]';
+        feedback.textContent = 'Elige o crea un grupo antes de sacar a alguien a bolsa.';
+        feedback.classList.remove('hidden');
+        return;
+      }
 
       if (!nombre || !tickerRaw) {
         feedback.className = 'bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]';
@@ -1869,7 +2117,7 @@
         const res = await fetch('/api/amigos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nombre, ticker: tickerRaw, descripcion })
+          body: JSON.stringify({ nombre, ticker: tickerRaw, descripcion, grupo })
         });
         const data = await res.json();
 
@@ -2075,10 +2323,18 @@
     function renderizarQRInvitacion() {
       const cont = document.getElementById('qrInvitacion');
       const linkEl = document.getElementById('shareLink');
-      const url = `${window.location.origin}/`;
+      const grupo = getGrupoActual();
+      const url = grupo
+        ? `${window.location.origin}/?grupo=${encodeURIComponent(grupo.codigo)}`
+        : `${window.location.origin}/`;
 
-      if (linkEl) linkEl.textContent = url;
+      if (linkEl) linkEl.textContent = grupo ? `Código ${grupo.codigo}` : 'Sin grupo activo';
       if (!cont) return;
+      if (!grupo) {
+        cont.innerHTML = '<span>Sin grupo activo</span>';
+        qrGenerado = false;
+        return;
+      }
 
       if (typeof QRCode === 'undefined') {
         if (!qrGenerado) cont.innerHTML = '<span>QR NO DISPONIBLE<br>ABRE EL ENLACE</span>';
@@ -2099,10 +2355,15 @@
     }
 
     function copiarEnlaceSala() {
-      const url = `${window.location.origin}/`;
+      const grupo = getGrupoActual();
+      if (!grupo) {
+        mostrarToast('Elige un grupo primero', 'info');
+        return;
+      }
+      const url = `${window.location.origin}/?grupo=${encodeURIComponent(grupo.codigo)}`;
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(url)
-          .then(() => mostrarToast('Enlace copiado al portapapeles', 'success'))
+          .then(() => mostrarToast(`Invitación a ${grupo.nombre} copiada`, 'success'))
           .catch(() => mostrarToast(`Copia manual: ${url}`, 'info'));
       } else {
         mostrarToast(`Enlace: ${url}`, 'info');
@@ -2189,11 +2450,12 @@
     }
 
     async function resetearMercado() {
-      if (!confirm('¿Reiniciar el parqué de $BROKERS con los datos iniciales?')) return;
+      if (!confirm('¿Borrar todos los grupos, cuentas, retos y saldos? No se puede deshacer.')) return;
       try {
         const res = await fetch('/api/reset', { method: 'POST' });
         if (res.ok) {
-          mostrarToast('Mercado reiniciado con los datos iniciales', 'info');
+          localStorage.removeItem('brokers_grupo');
+          mostrarToast('Parqué reiniciado · crea un grupo para empezar', 'info');
           qrGenerado = false;
           cargarEstado();
         }

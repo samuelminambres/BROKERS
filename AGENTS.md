@@ -3,6 +3,7 @@
 ## 1. Contexto y Visión del Proyecto
 Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un mercado de valores especulativo en tiempo real para grupos de amigos universitarios con estética "Bloomberg Terminal / Robinhood Dark Mode".
 - Los amigos cotizan en bolsa mediante un Ticker (`$SAMU`, `$MITO`, etc.).
+- Un usuario puede pertenecer a varios grupos (piso, clase, etc.). Cada grupo tiene sus propios activos, retos y ranking.
 - Los usuarios abren "Contratos Flash" sobre retos cotidianos de un amigo.
 - El resto invierte monedas virtuales (`$BROK`) pulsando `CONFIO` (LONG 📈) o `NI_DE_BROMA` (SHORT 📉).
 
@@ -14,9 +15,10 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
 - **IA SDK:** Usar exclusivamente `google-genai` (nuevo SDK oficial: `from google import genai`) con el modelo `gemini-2.5-flash`. Tener siempre un *fallback* (try/except) por si falla la API o no hay internet, devolviendo respuestas sarcásticas predefinidas para que la demo nunca se rompa.
 
 ## 3. Reglas de Negocio y Matemáticas (Teoría de Juegos)
-1. **Separación de métricas:**
-   - `saldo` (Monedas `$BROK`): Cartera del usuario (todos empiezan con `1000.0`). Determina el Ranking de Ricos.
+1. **Separación de métricas y grupos:**
+   - `saldo` (Monedas `$BROK`): Cartera global del usuario (todos empiezan con `1000.0`). Determina el ranking dentro de cada grupo.
    - `cotizacion` (`0.0¢` a `100.0¢`): Probabilidad/fiabilidad actual de un amigo o contrato.
+   - Cada grupo aísla sus activos, contratos, noticias y ranking. Un usuario puede estar en varios grupos y cada miembro tiene su ticker `$ALIAS` dentro de cada grupo.
 2. **Motor de Precios LMSR (Hanson):**
    - Liquidez constante `B = 100.0`.
    - Todo mercado nace con liquidez semilla del Banco Central: `q_si = 50.0`, `q_no = 50.0`.
@@ -38,14 +40,16 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
    - **Oráculo Visual + VAR (Impugnación):** Al subir foto de resolución, Gemini Vision decide si se cumplió (`SI`/`NO`). Si gana `NO`, el mercado permite pulsar "Impugnar con Contra-Foto (VAR)": si el protagonista sube un selfie demostrando presencia, se revierte a `SI` y se embarga el doble de lo apostado al tramposo que subió la primera foto falsa.
 
 ## 4. Contrato Estricto de API (Backend <-> Frontend)
-- `GET /api/estado` -> Devuelve `{ amigos: [...], mercados: [...], noticias: [...], ranking: [...] }`
-- `POST /api/usuarios` -> Body: `{ usuario, nombre }` (registra el alias, crea su ticker `$ALIAS` y le asigna 1.000 $BROK)
-- `POST /api/amigos` -> Body: `{ ticker, nombre }`
-- `POST /api/mercados` -> Body: `{ creador, ticker, pregunta }` (Pasa por filtro CNMV IA)
+- `GET /api/estado?usuario=<alias>&grupo=<id>` -> Devuelve `{ grupos, grupo_actual, amigos, mercados, noticias, ranking }` del grupo indicado.
+- `POST /api/usuarios` -> Body: `{ usuario, nombre }` (registra el alias y le asigna 1.000 $BROK)
+- `POST /api/grupos` -> Body: `{ usuario, nombre }` (crea el grupo y su ticker `$ALIAS`; devuelve `grupo` con `id` y `codigo`)
+- `POST /api/grupos/unirse` -> Body: `{ usuario, codigo }` (añade al usuario y su ticker al grupo)
+- `POST /api/amigos` -> Body: `{ ticker, nombre, grupo }`
+- `POST /api/mercados` -> Body: `{ creador, ticker, pregunta, grupo }` (Pasa por filtro CNMV IA)
 - `POST /api/mercados/<id>/aceptar` -> Body: `{ usuario }` (Solo el protagonista; abre el mercado)
 - `POST /api/mercados/<id>/apostar` -> Body: `{ usuario, tipo: "SI"|"NO", cantidad: float }`
 - `POST /api/mercados/<id>/resolver` -> `multipart/form-data` con `usuario`, `imagen` (File) y `es_impugnacion` ("true"|"false").
-- `POST /api/reset` -> Reinicia el estado a un grupo vacío (sin amigos, retos, usuarios ni noticias).
+- `POST /api/reset` -> Borra todos los grupos, cuentas, retos y noticias (estado vacío).
 
 ## 5. Diseño de `static/index.html` (Obligatorio)
 - Toda creación o edición de `static/index.html` se hace con la skill global `design-taste-frontend` (cargarla antes de tocar el archivo).

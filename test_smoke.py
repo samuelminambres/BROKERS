@@ -27,22 +27,35 @@ def test_ai_service_fallback():
     titular = ai_service.generar_titular_wallstreet("apuesta", {"ticker": "$SAMU", "usuario": "mito", "cantidad": 50})
     assert isinstance(titular, str) and len(titular) > 5
 
-def test_registro_usuario_crea_ticker():
+def test_usuario_en_dos_grupos_y_tickers_aislados():
     client = app.test_client()
     client.post("/api/reset")
 
-    res = client.post("/api/usuarios", json={"usuario": "pepe", "nombre": "Pepe"})
-    assert res.status_code == 201
-    assert res.get_json()["ticker"] == "$PEPE"
+    # El registro crea la cuenta; el ticker nace al entrar en un grupo
+    assert client.post("/api/usuarios", json={"usuario": "pepe", "nombre": "Pepe"}).status_code == 201
+    estado = client.get("/api/estado?usuario=pepe").get_json()
+    assert estado["grupos"] == []
+    assert estado["amigos"] == []
 
-    estado = client.get("/api/estado").get_json()
-    assert any(a["ticker"] == "$PEPE" for a in estado["amigos"])
-    assert any(u["usuario"] == "pepe" for u in estado["ranking"])
+    piso = client.post("/api/grupos", json={"usuario": "pepe", "nombre": "Piso"}).get_json()["grupo"]
+    clase = client.post("/api/grupos", json={"usuario": "pepe", "nombre": "Clase"}).get_json()["grupo"]
 
-    # Repetir el registro no duplica el ticker
-    assert client.post("/api/usuarios", json={"usuario": "pepe", "nombre": "Pepe"}).status_code == 200
-    estado = client.get("/api/estado").get_json()
-    assert sum(a["ticker"] == "$PEPE" for a in estado["amigos"]) == 1
+    assert client.post("/api/amigos", json={"ticker": "$COMPI", "nombre": "Compi", "grupo": piso["id"]}).status_code == 201
+
+    estado = client.get(f"/api/estado?usuario=pepe&grupo={piso['id']}").get_json()
+    assert estado["grupo_actual"]["id"] == piso["id"]
+    assert {a["ticker"] for a in estado["amigos"]} == {"$PEPE", "$COMPI"}
+    assert any(a["ticker"] == "$COMPI" and a["grupo"] == piso["id"] for a in estado["amigos"])
+    assert len(estado["grupos"]) == 2
+    assert len(estado["ranking"]) == 2
+
+    estado_clase = client.get(f"/api/estado?usuario=pepe&grupo={clase['id']}").get_json()
+    assert {a["ticker"] for a in estado_clase["amigos"]} == {"$PEPE"}
+    assert [u["usuario"] for u in estado_clase["ranking"]] == ["pepe"]
+
+    # El mismo ticker existe una vez por grupo, no una vez por usuario global
+    assert sum(a["ticker"] == "$PEPE" and a["grupo"] == piso["id"] for a in estado["amigos"]) == 1
+    assert sum(a["ticker"] == "$PEPE" and a["grupo"] == clase["id"] for a in estado_clase["amigos"]) == 1
 
 
 def test_api_routes():
@@ -52,24 +65,31 @@ def test_api_routes():
     res_reset = client.post("/api/reset")
     assert res_reset.status_code == 200
 
-    # 2. Get estado
-    res_estado = client.get("/api/estado")
+    # 2. Get empty estado
+    res_estado = client.get("/api/estado?usuario=mito")
     assert res_estado.status_code == 200
     data = res_estado.get_json()
+    assert "grupos" in data
     assert "amigos" in data
     assert "mercados" in data
     assert "ranking" in data
     assert "noticias" in data
 
-    # 3. Add amigo
-    res_amigo = client.post("/api/amigos", json={"ticker": "$NUEVO", "nombre": "Nuevo Amigo"})
+    # 3. Create group and add its members
+    grupo = client.post("/api/grupos", json={"usuario": "mito", "nombre": "Test"}).get_json()["grupo"]
+    gid = grupo["id"]
+    assert client.post("/api/grupos/unirse", json={"usuario": "samu", "codigo": grupo["codigo"]}).status_code == 200
+
+    # 4. Add amigo to the group
+    res_amigo = client.post("/api/amigos", json={"ticker": "$NUEVO", "nombre": "Nuevo Amigo", "grupo": gid})
     assert res_amigo.status_code == 201
 
-    # 4. Create mercado with valid challenge
+    # 5. Create mercado with valid challenge
     res_mercado = client.post("/api/mercados", json={
         "creador": "mito",
         "ticker": "$NUEVO",
-        "pregunta": "Ser capaz de estudiar 2 horas seguidas"
+        "pregunta": "Ser capaz de estudiar 2 horas seguidas",
+        "grupo": gid
     })
     assert res_mercado.status_code == 201
     mkt_id = res_mercado.get_json()["mercado"]["id"]

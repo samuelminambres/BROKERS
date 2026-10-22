@@ -39,11 +39,39 @@ def calcular_precio_lmsr(q_si: float, q_no: float) -> float:
 def get_semilla_demo():
     """Estado inicial vacío: un grupo nuevo no tiene activos, usuarios ni historial."""
     return {
+        "grupos": [],
         "amigos": [],
         "usuarios": {},
         "mercados": [],
         "noticias": []
     }
+
+
+def migrar_a_grupos(db):
+    """Mueve una base antigua de un solo grupo a 'Mi grupo' sin perder datos."""
+    usuarios = list(db.get("usuarios", {}).keys())
+    if not usuarios:
+        db["grupos"] = []
+        return db
+    gid = "grp_principal"
+    grupo = {
+        "id": gid,
+        "nombre": "Mi grupo",
+        "codigo": "PRINCIPAL",
+        "creador": usuarios[0] if usuarios else "sistema",
+        "miembros": usuarios,
+        "creado": datetime.now().strftime("%Y-%m-%d")
+    }
+    db["grupos"] = [grupo]
+    for a in db.get("amigos", []):
+        a["grupo"] = gid
+    for m in db.get("mercados", []):
+        m["grupo"] = gid
+    for n in db.get("noticias", []):
+        n["grupo"] = gid
+    for uid in usuarios:
+        asegurar_ticker_en_grupo(db, grupo, uid)
+    return db
 
 
 def cargar_db():
@@ -54,7 +82,11 @@ def cargar_db():
         return db
     try:
         with open(DB_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            db = json.load(f)
+        if "grupos" not in db:
+            db = migrar_a_grupos(db)
+            guardar_db(db)
+        return db
     except Exception:
         db = get_semilla_demo()
         guardar_db(db)
@@ -80,12 +112,68 @@ def asegurar_usuario(db, usuario_id: str, nombre: str = None):
     return uid
 
 
+def get_grupo(db, grupo_id):
+    """Busca un grupo por id."""
+    return next((g for g in db.get("grupos", []) if g["id"] == grupo_id), None)
+
+
+def es_miembro(grupo, usuario):
+    """Comprueba si el alias pertenece al grupo."""
+    return bool(grupo and usuario and usuario.strip().lower() in grupo.get("miembros", []))
+
+
+def grupos_de_usuario(db, usuario):
+    """Lista los grupos a los que pertenece un alias."""
+    uid = (usuario or "").strip().lower()
+    return [g for g in db.get("grupos", []) if uid in g.get("miembros", [])]
+
+
+def nuevo_codigo_grupo(db):
+    """Genera un código de invitación corto y único."""
+    while True:
+        codigo = uuid.uuid4().hex[:6].upper()
+        if not any(g.get("codigo") == codigo for g in db.get("grupos", [])):
+            return codigo
+
+
+def asegurar_ticker_en_grupo(db, grupo, usuario, nombre=None):
+    """Cada miembro es también un activo cotizado dentro de su grupo."""
+    uid = usuario.strip().lower()
+    ticker = f"${uid.upper()}"
+    existente = next((a for a in db["amigos"] if a.get("grupo") == grupo["id"] and a["ticker"] == ticker), None)
+    if existente:
+        return existente
+    if nombre is None:
+        nombre = db.get("usuarios", {}).get(uid, {}).get("nombre", uid)
+    amigo = {
+        "ticker": ticker,
+        "nombre": nombre,
+        "descripcion": "Broker registrado en el parqué. Cotización inicial de 50.0¢.",
+        "cotizacion": 50.0,
+        "grupo": grupo["id"]
+    }
+    db["amigos"].append(amigo)
+    return amigo
+
+
+def unir_usuario_a_grupo(db, grupo, usuario, nombre=None):
+    """Añade el usuario al grupo y garantiza su ticker dentro de ese grupo."""
+    uid = asegurar_usuario(db, usuario, nombre)
+    if uid not in grupo["miembros"]:
+        grupo["miembros"].append(uid)
+    asegurar_ticker_en_grupo(db, grupo, uid, nombre)
+    return uid
+
+
 def es_protagonista(db, mercado, usuario):
     """El protagonista es el dueño del ticker o quien coincide con el nombre del activo."""
     if not usuario:
         return False
     nombres = {mercado.get("ticker", "").replace("$", "").lower()}
-    amigo = next((a for a in db["amigos"] if a["ticker"] == mercado.get("ticker")), None)
+    amigo = next((
+        a for a in db["amigos"]
+        if a["ticker"] == mercado.get("ticker") and a.get("grupo") == mercado.get("grupo")
+    ), None)
     if amigo and amigo.get("nombre"):
         nombres.add(amigo["nombre"].strip().lower())
     return usuario.strip().lower() in nombres
@@ -111,43 +199,56 @@ def serve_static(filename):
 
 @app.route("/api/estado", methods=["GET"])
 def api_estado():
-    """
-    Devuelve el estado completo del mercado:
-    { amigos: [...], mercados: [...], noticias: [...], ranking: [...] }
-    """
+    """Devuelve el mercado del grupo activo y los grupos del usuario."""
     db = cargar_db()
+    usuario = request.args.get("usuario", "").strip().lower()
+    grupo_id = request.args.get("grupo", "").strip()
 
-    # Calcular ranking ordenado por saldo de mayor a menor
+    grupos_usuario = grupos_de_usuario(db, usuario) if usuario else []
+    grupo = get_grupo(db, grupo_id) if grupo_id else None
+    if usuario and grupo and not es_miembro(grupo, usuario):
+        grupo = None
+    if not grupo and usuario and grupos_usuario:
+        grupo = grupos_usuario[0]
+
+    amigos = []
+    mercados = []
+    noticias = []
     ranking = []
-    for uid, data in db.get("usuarios", {}).items():
-        ranking.append({
-            "usuario": uid,
-            "nombre": data.get("nombre", uid),
-            "saldo": round(data.get("saldo", 0.0), 2)
-        })
-    ranking.sort(key=lambda x: x["saldo"], reverse=True)
 
-    # Actualizar cotización actual de cada amigo con base en sus mercados
-    cotizaciones_amigos = {a["ticker"]: a.get("cotizacion", 50.0) for a in db["amigos"]}
-    mercados_abiertos = {m["ticker"] for m in db["mercados"] if m["estado"] == "ABIERTO"}
+    if grupo:
+        amigos = [a for a in db.get("amigos", []) if a.get("grupo") == grupo["id"]]
+        mercados = [m for m in db.get("mercados", []) if m.get("grupo") == grupo["id"]]
+        noticias = [n for n in db.get("noticias", []) if n.get("grupo") == grupo["id"]]
 
-    for m in db["mercados"]:
-        ticker = m["ticker"]
-        if m["estado"] == "ABIERTO":
-            # Si hay mercado abierto, manda el precio spot actual
-            cotizaciones_amigos[ticker] = m["precio_si"]
-        elif ticker not in mercados_abiertos and m["estado"] == "RESUELTO":
-            # Si no hay mercado abierto, refleja el resultado del último mercado resuelto
-            cotizaciones_amigos[ticker] = 100.0 if m.get("ganador") == "SI" else 0.0
+        for uid in grupo.get("miembros", []):
+            data = db.get("usuarios", {}).get(uid, {"nombre": uid, "saldo": 1000.0})
+            ranking.append({
+                "usuario": uid,
+                "nombre": data.get("nombre", uid),
+                "saldo": round(data.get("saldo", 0.0), 2)
+            })
+        ranking.sort(key=lambda x: x["saldo"], reverse=True)
 
-    for a in db["amigos"]:
-        if a["ticker"] in cotizaciones_amigos:
-            a["cotizacion"] = cotizaciones_amigos[a["ticker"]]
+        # La cotización del activo refleja su último mercado dentro del grupo
+        cotizaciones_amigos = {a["ticker"]: a.get("cotizacion", 50.0) for a in amigos}
+        mercados_abiertos = {m["ticker"] for m in mercados if m["estado"] == "ABIERTO"}
+        for m in mercados:
+            ticker = m["ticker"]
+            if m["estado"] == "ABIERTO":
+                cotizaciones_amigos[ticker] = m["precio_si"]
+            elif ticker not in mercados_abiertos and m["estado"] == "RESUELTO":
+                cotizaciones_amigos[ticker] = 100.0 if m.get("ganador") == "SI" else 0.0
+        for a in amigos:
+            if a["ticker"] in cotizaciones_amigos:
+                a["cotizacion"] = cotizaciones_amigos[a["ticker"]]
 
     return jsonify({
-        "amigos": db.get("amigos", []),
-        "mercados": db.get("mercados", []),
-        "noticias": db.get("noticias", []),
+        "grupos": grupos_usuario,
+        "grupo_actual": grupo,
+        "amigos": amigos,
+        "mercados": mercados,
+        "noticias": noticias,
         "ranking": ranking
     })
 
@@ -166,60 +267,113 @@ def api_crear_usuario():
 
     existia = usuario in db["usuarios"]
     uid = asegurar_usuario(db, usuario, nombre)
-
-    ticker = f"${uid.upper()}"
-    if not any(a["ticker"] == ticker for a in db["amigos"]):
-        db["amigos"].append({
-            "ticker": ticker,
-            "nombre": db["usuarios"][uid]["nombre"],
-            "descripcion": "Broker registrado en el parqué. Cotización inicial de 50.0¢.",
-            "cotizacion": 50.0
-        })
-
     guardar_db(db)
 
     return jsonify({
         "usuario": uid,
         "nombre": db["usuarios"][uid]["nombre"],
         "saldo": db["usuarios"][uid]["saldo"],
-        "ticker": ticker,
         "nuevo": not existia
     }), (200 if existia else 201)
+
+
+@app.route("/api/grupos", methods=["POST"])
+def api_crear_grupo():
+    """Crea un grupo y convierte al creador en miembro cotizado."""
+    db = cargar_db()
+    data = request.get_json() or {}
+    usuario = data.get("usuario", "").strip().lower().lstrip("@")
+    nombre_grupo = data.get("nombre", "").strip()
+
+    if not re.fullmatch(r"[a-z0-9_]{2,12}", usuario):
+        return jsonify({"error": "Alias inválido"}), 400
+    if not 2 <= len(nombre_grupo) <= 30:
+        return jsonify({"error": "El nombre del grupo debe tener entre 2 y 30 caracteres"}), 400
+
+    uid = asegurar_usuario(db, usuario)
+    grupo = {
+        "id": f"grp_{uuid.uuid4().hex[:8]}",
+        "nombre": nombre_grupo,
+        "codigo": nuevo_codigo_grupo(db),
+        "creador": uid,
+        "miembros": [],
+        "creado": datetime.now().strftime("%Y-%m-%d")
+    }
+    db["grupos"].append(grupo)
+    unir_usuario_a_grupo(db, grupo, uid)
+    guardar_db(db)
+
+    return jsonify({
+        "mensaje": f"Grupo '{nombre_grupo}' creado",
+        "grupo": grupo
+    }), 201
+
+
+@app.route("/api/grupos/unirse", methods=["POST"])
+def api_unirse_grupo():
+    """Añade al usuario a un grupo mediante su código de invitación."""
+    db = cargar_db()
+    data = request.get_json() or {}
+    usuario = data.get("usuario", "").strip().lower().lstrip("@")
+    codigo = data.get("codigo", "").strip().upper()
+
+    if not re.fullmatch(r"[a-z0-9_]{2,12}", usuario):
+        return jsonify({"error": "Alias inválido"}), 400
+
+    grupo = next((g for g in db.get("grupos", []) if g.get("codigo") == codigo), None)
+    if not grupo:
+        return jsonify({"error": "Código de grupo no encontrado"}), 404
+
+    ya_miembro = es_miembro(grupo, usuario)
+    unir_usuario_a_grupo(db, grupo, usuario)
+    guardar_db(db)
+
+    return jsonify({
+        "mensaje": f"Te has unido a '{grupo['nombre']}'",
+        "grupo": grupo,
+        "nuevo": not ya_miembro
+    })
 
 
 @app.route("/api/amigos", methods=["POST"])
 def api_crear_amigo():
     """
     Crea un nuevo amigo para cotizar en bolsa.
-    Body: { ticker, nombre, descripcion (opcional) }
+    Body: { ticker, nombre, descripcion (opcional), grupo }
     """
     db = cargar_db()
     data = request.get_json() or {}
-    
+    grupo = get_grupo(db, data.get("grupo", "").strip())
+
     ticker_raw = data.get("ticker", "").strip().upper()
     nombre = data.get("nombre", "").strip()
     descripcion = data.get("descripcion", "Nuevo activo especulativo de alta volatilidad.").strip()
 
+    if not grupo:
+        return jsonify({"error": "El grupo es obligatorio"}), 400
     if not ticker_raw or not nombre:
         return jsonify({"error": "Ticker y nombre son obligatorios"}), 400
 
     ticker = ticker_raw if ticker_raw.startswith("$") else f"${ticker_raw}"
 
-    # Comprobar si ya existe
-    if any(a["ticker"] == ticker for a in db["amigos"]):
-        return jsonify({"error": f"El ticker {ticker} ya cotiza en bolsa"}), 400
+    # El mismo ticker puede existir en grupos distintos
+    if any(a["ticker"] == ticker and a.get("grupo") == grupo["id"] for a in db["amigos"]):
+        return jsonify({"error": f"El ticker {ticker} ya cotiza en este grupo"}), 400
 
     nuevo_amigo = {
         "ticker": ticker,
         "nombre": nombre,
         "descripcion": descripcion,
-        "cotizacion": 50.0
+        "cotizacion": 50.0,
+        "grupo": grupo["id"]
     }
     db["amigos"].append(nuevo_amigo)
 
-    # Crear usuario automáticamente
+    # Cada activo tiene su usuario, que también pasa a ser miembro del grupo
     uid = ticker.replace("$", "").lower()
     asegurar_usuario(db, uid, nombre)
+    if uid not in grupo["miembros"]:
+        grupo["miembros"].append(uid)
 
     # Noticia de OPV
     titular = f"SALIDA A BOLSA: {ticker} debuta en el parqué con una cotización base de 50.0¢."
@@ -227,7 +381,8 @@ def api_crear_amigo():
         "id": f"not_{uuid.uuid4().hex[:6]}",
         "titular": titular,
         "hora": datetime.now().strftime("%H:%M"),
-        "ticker": ticker
+        "ticker": ticker,
+        "grupo": grupo["id"]
     })
 
     guardar_db(db)
@@ -239,19 +394,24 @@ def api_crear_mercado():
     """
     Crea un nuevo contrato flash.
     Pasa obligatoriamente por el filtro de la CNMV IA.
-    Body: { creador, ticker, pregunta }
+    Body: { creador, ticker, pregunta, grupo }
     """
     db = cargar_db()
     data = request.get_json() or {}
+    grupo = get_grupo(db, data.get("grupo", "").strip())
     
     creador = data.get("creador", "").strip().lower()
     ticker = data.get("ticker", "").strip().upper()
     pregunta = data.get("pregunta", "").strip()
 
+    if not grupo:
+        return jsonify({"error": "El grupo es obligatorio"}), 400
     if not creador or not ticker or not pregunta:
         return jsonify({"error": "creador, ticker y pregunta son obligatorios"}), 400
-
-    asegurar_usuario(db, creador)
+    if not es_miembro(grupo, creador):
+        return jsonify({"error": "No perteneces a este grupo"}), 403
+    if not any(a["ticker"] == ticker and a.get("grupo") == grupo["id"] for a in db["amigos"]):
+        return jsonify({"error": f"El ticker {ticker} no cotiza en este grupo"}), 400
 
     # 1. Filtro CNMV IA
     analisis = ai_service.validar_reto_cnmv(creador, ticker, pregunta)
@@ -264,7 +424,8 @@ def api_crear_mercado():
             "id": f"not_{uuid.uuid4().hex[:6]}",
             "titular": f"SANCIÓN CNMV: {creador} multado con -{penalizacion:.0f} $BROK por intentar colocar un contrato delirante en {ticker}.",
             "hora": datetime.now().strftime("%H:%M"),
-            "ticker": ticker
+            "ticker": ticker,
+            "grupo": grupo["id"]
         })
         guardar_db(db)
         
@@ -283,6 +444,7 @@ def api_crear_mercado():
 
     nuevo_mercado = {
         "id": f"mkt_{uuid.uuid4().hex[:8]}",
+        "grupo": grupo["id"],
         "ticker": ticker,
         "creador": creador,
         "pregunta": pregunta_final,
@@ -317,7 +479,8 @@ def api_crear_mercado():
         "id": f"not_{uuid.uuid4().hex[:6]}",
         "titular": titular,
         "hora": hora_actual,
-        "ticker": ticker
+        "ticker": ticker,
+        "grupo": grupo["id"]
     })
 
     guardar_db(db)
@@ -338,6 +501,9 @@ def api_aceptar_mercado(mercado_id):
     mercado = next((m for m in db["mercados"] if m["id"] == mercado_id), None)
     if not mercado:
         return jsonify({"error": "Mercado no encontrado"}), 404
+    grupo = get_grupo(db, mercado.get("grupo", ""))
+    if not grupo or not es_miembro(grupo, usuario):
+        return jsonify({"error": "No perteneces a este grupo"}), 403
     if mercado["estado"] != "ABIERTO":
         return jsonify({"error": "El mercado ya está cerrado o resuelto"}), 400
     if not es_protagonista(db, mercado, usuario):
@@ -377,6 +543,9 @@ def api_apostar(mercado_id):
     mercado = next((m for m in db["mercados"] if m["id"] == mercado_id), None)
     if not mercado:
         return jsonify({"error": "Mercado no encontrado"}), 404
+    grupo = get_grupo(db, mercado.get("grupo", ""))
+    if not grupo or not es_miembro(grupo, usuario):
+        return jsonify({"error": "No perteneces a este grupo"}), 403
 
     if mercado["estado"] != "ABIERTO":
         return jsonify({"error": "El mercado ya está cerrado o resuelto"}), 400
@@ -444,7 +613,8 @@ def api_apostar(mercado_id):
         "id": f"not_{uuid.uuid4().hex[:6]}",
         "titular": titular,
         "hora": hora_actual,
-        "ticker": mercado["ticker"]
+        "ticker": mercado["ticker"],
+        "grupo": mercado["grupo"]
     })
 
     guardar_db(db)
@@ -469,6 +639,9 @@ def api_resolver(mercado_id):
 
     usuario = request.form.get("usuario", "").strip().lower()
     es_impugnacion = request.form.get("es_impugnacion", "false").lower() == "true"
+    grupo = get_grupo(db, mercado.get("grupo", ""))
+    if not grupo or not es_miembro(grupo, usuario):
+        return jsonify({"error": "No perteneces a este grupo"}), 403
 
     if not es_impugnacion and mercado["estado"] == "ABIERTO" and not mercado.get("aceptado"):
         return jsonify({"error": "El reto todavía no ha sido aceptado por el protagonista."}), 400
@@ -561,7 +734,8 @@ def api_resolver(mercado_id):
                 "id": f"not_{uuid.uuid4().hex[:6]}",
                 "titular": titular,
                 "hora": hora_actual,
-                "ticker": mercado["ticker"]
+                "ticker": mercado["ticker"],
+                "grupo": mercado["grupo"]
             })
             guardar_db(db)
             return jsonify({
@@ -639,7 +813,8 @@ def api_resolver(mercado_id):
         "id": f"not_{uuid.uuid4().hex[:6]}",
         "titular": titular,
         "hora": hora_actual,
-        "ticker": mercado["ticker"]
+        "ticker": mercado["ticker"],
+        "grupo": mercado["grupo"]
     })
 
     guardar_db(db)
