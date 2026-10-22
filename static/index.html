@@ -6,11 +6,11 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="manifest" href="/static/manifest.webmanifest">
-  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="/static/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/static/icon-192.png">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0C2033">
-  <title>$BROKERS · Terminal bursátil</title>
+  <title>$BROKERS · La bolsa de amigos</title>
 
   <!-- Tipografía: Nunito (interfaz y datos) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -285,6 +285,8 @@
       .marquee, .blink, .flash-up, .flash-down, .view-enter { animation: none !important; }
     }
 
+    #bloqueCarrusel { max-height: 210px; overflow: hidden; transition: max-height .25s ease, opacity .2s ease, transform .25s ease; }
+    #bloqueCarrusel.carrusel-oculto { max-height: 0; opacity: 0; transform: translateY(-6px); }
     .ticker-fade { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); }
     .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
   </style>
@@ -377,18 +379,16 @@
   </svg>
 
   <!-- ================= APP ================= -->
-  <div id="phoneShell" class="w-full max-w-[480px] h-[100dvh] app-surface flex flex-col relative overflow-hidden md:shadow-[0_0_70px_rgba(47,174,76,0.14)]">
+  <div id="phoneShell" class="w-full max-w-[480px] sm:max-w-[560px] lg:max-w-[680px] h-[100dvh] app-surface flex flex-col relative overflow-hidden md:shadow-[0_0_70px_rgba(47,174,76,0.14)]">
 
     <!-- CABECERA -->
     <header class="shrink-0 px-4 pb-3 z-20" style="padding-top: calc(env(safe-area-inset-top) + 14px);">
       <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <span class="text-[23px] font-black tracking-tight text-[#6CDA87]">$BROKERS</span>
-          <span class="inline-flex items-center gap-1.5 bg-[#DFF4E4] text-[#0E6B33] text-[13px] font-extrabold px-2.5 py-1 rounded-full">
-            <span class="w-1.5 h-1.5 rounded-full bg-[#2FAE4C] blink"></span> EN VIVO
-          </span>
+        <div class="flex items-center gap-2.5 min-w-0">
+          <img src="/static/icon-200.png" alt="Logo $BROKERS" class="w-9 h-9 rounded-xl ring-1 ring-white/15 shrink-0">
+          <span class="text-[22px] font-black tracking-tight text-[#6CDA87] truncate">$BROKERS</span>
         </div>
-        <button id="btnSoundToggle" onclick="toggleAudio()" title="Activar/Silenciar efectos" class="w-10 h-10 rounded-full bg-white shadow-[0_4px_14px_rgba(28,27,34,0.08)] flex items-center justify-center text-paper">
+        <button id="btnSoundToggle" onclick="toggleAudio()" title="Activar/Silenciar efectos" class="w-10 h-10 rounded-full bg-white shadow-[0_4px_14px_rgba(0,0,0,0.20)] flex items-center justify-center text-paper shrink-0">
           <svg class="w-5 h-5"><use href="#i-sound-on"></use></svg>
         </button>
       </div>
@@ -407,9 +407,11 @@
         </div>
 
         <div class="text-right shrink-0">
-          <div class="text-[13px] font-bold text-white/60">Patrimonio</div>
-          <div id="userBalanceDisplay" class="font-mono text-[22px] font-black leading-tight text-[#7BE3A0]">1.000,00</div>
-          <div class="text-[13px] font-bold text-white/50">$BROK</div>
+          <div class="text-[11px] font-bold text-white/60">Saldo</div>
+          <div class="flex items-baseline justify-end gap-1">
+            <span id="userBalanceDisplay" class="font-mono text-[20px] font-black leading-tight text-[#7BE3A0]">1.000,00</span>
+            <span class="text-[11px] font-bold text-white/50">$BROK</span>
+          </div>
         </div>
       </div>
     </header>
@@ -435,77 +437,49 @@
         <span class="text-[13px] font-extrabold text-cream">Activos en bolsa</span>
         <span id="carouselCount" class="text-[13px] font-extrabold text-brand bg-brand-soft rounded-full px-2.5 py-1">0</span>
       </div>
-      <div id="carruselActivos" class="flex gap-2 overflow-x-auto px-4 pb-3 snap-x"></div>
+      <div id="carruselActivos" class="flex gap-2 overflow-x-auto px-4 pt-2 pb-3 snap-x"></div>
     </div>
 
     <main id="mainViewport" class="flex-1 overflow-y-auto overflow-x-hidden relative" style="padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));">
 
-      <!-- ===== PESTAÑA: PARQUÉ ===== -->
+      <!-- ===== PESTAÑA: MERCADO ===== -->
       <section id="viewParque" class="p-4 space-y-3 view-enter">
 
-        <div class="hero-card relative overflow-hidden p-5">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <div class="text-[13px] font-bold text-white/70">Índice $BROKERS 500</div>
-              <div class="text-[22px] font-black leading-tight mt-0.5 text-cream">La bolsa de amigos</div>
-              <div class="text-[12px] font-semibold text-white/55 mt-1">Bloomberg de barrio</div>
-            </div>
-            <span id="heroMarketMood" class="tag bg-sun text-ink">Bullish 52%</span>
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="text-[22px] font-black text-cream whitespace-nowrap">Retos del grupo</h2>
+            <p class="text-[13px] font-semibold text-white/60 mt-1 truncate">
+              <span id="statTotalMercados">0 abiertos</span> · índice <span id="heroIndexValue">50.0</span>¢
+            </p>
           </div>
-
-          <div class="flex items-end justify-between gap-2 mt-4">
-            <div>
-              <div class="text-[13px] font-bold text-white/70">Cotización media</div>
-              <div class="font-mono text-[46px] font-black leading-none text-cream mt-1">
-                <span id="heroIndexValue">50.0</span><span class="text-[22px] text-white/60">¢</span>
-              </div>
-            </div>
-            <svg class="w-[92px] h-[92px] shrink-0 -mb-1" viewBox="0 0 96 96" aria-hidden="true"><use href="#i-coin"></use></svg>
-          </div>
-
-          <div class="grid grid-cols-3 gap-2 mt-4">
-            <div class="bg-white/10 rounded-2xl p-3">
-              <div class="text-[13px] font-bold text-white/65">Liquidez</div>
-              <div id="statTotalBote" class="text-[14px] font-extrabold text-cream mt-0.5">0 $BROK</div>
-            </div>
-            <div class="bg-white/10 rounded-2xl p-3">
-              <div class="text-[13px] font-bold text-white/65">Activos</div>
-              <div id="statTotalMercados" class="text-[14px] font-extrabold text-cream mt-0.5">0 abiertos</div>
-            </div>
-            <div class="bg-white/10 rounded-2xl p-3">
-              <div class="text-[13px] font-bold text-white/65">Cotización</div>
-              <div id="statMediaCotiz" class="text-[14px] font-extrabold text-cream mt-0.5">50.0¢</div>
-            </div>
-          </div>
+          <button onclick="cambiarTab('retos')" class="btn btn-paper !py-2.5 !px-4 !text-[14px] shrink-0">+ Crear</button>
         </div>
 
-        <!-- FILTROS -->
-        <div class="flex items-center gap-2">
-          <div class="flex gap-1.5 overflow-x-auto py-0.5">
-            <button onclick="filtrarMercados('TODOS')" id="filterBtnTODOS" class="chip chip-active">Todos</button>
-            <button onclick="filtrarMercados('ABIERTOS')" id="filterBtnABIERTOS" class="chip">En vivo</button>
-            <button onclick="filtrarMercados('RESUELTOS')" id="filterBtnRESUELTOS" class="chip">Liquidados</button>
-          </div>
-          <button onclick="cargarEstado(true)" title="Refrescar parqué" class="w-10 h-10 rounded-full bg-white shadow-[0_4px_14px_rgba(28,27,34,0.08)] text-paper text-[18px] shrink-0 ml-auto">↻</button>
-        </div>
-
-        <!-- CONTRATOS -->
         <div id="cardsContratosContainer" class="space-y-3">
-          <div class="text-center py-12 text-dim text-[16px] font-semibold">
-            Cargando contratos…
+          <div class="text-center py-12 text-white/50 text-[16px] font-semibold">
+            Cargando retos…
           </div>
         </div>
 
-        <!-- SLOT PATROCINADO -->
-        <div class="bg-white rounded-2xl p-3.5 flex items-center gap-3 shadow-[0_6px_20px_rgba(28,27,34,0.05)]">
-          <span class="bg-sun text-ink px-2.5 py-1 text-[13px] font-extrabold rounded-full shrink-0">Patrocinado</span>
-          <span class="text-[13px] font-semibold text-dim leading-snug">Reto Estrella Galicia / Red Bull · disponible los jueves en el campus</span>
+        <div class="flex items-start gap-2.5 px-1 pt-1">
+          <span class="w-2 h-2 rounded-full bg-bear blink mt-1.5 shrink-0"></span>
+          <div class="min-w-0">
+            <div class="text-[11px] font-bold text-white/45">Bloomberg de barrio · Último titular</div>
+            <div id="homeNews" class="text-[13px] font-semibold text-cream leading-snug"></div>
+          </div>
         </div>
 
       </section>
 
-      <!-- ===== PESTAÑA: TRADING ===== -->
+      <!-- ===== DETALLE DE CONTRATO ===== -->
       <section id="viewTrading" class="p-4 space-y-3 hidden">
+
+        <div class="flex items-center justify-between">
+          <button onclick="volverAlMercado()" class="flex items-center gap-1 text-[14px] font-extrabold text-white/70">
+            <span class="text-[20px] leading-none">‹</span> Mercado
+          </button>
+          <span class="text-[12px] font-bold text-white/40">Contrato</span>
+        </div>
 
         <div class="panel p-5 space-y-3">
           <div class="flex items-center justify-between gap-2">
@@ -514,7 +488,7 @@
               <span id="tradeStatusBadge" class="tag tag-bull">En vigor</span>
             </div>
             <span class="flex items-center gap-1.5 text-[13px] font-bold text-dim shrink-0">
-              <svg class="w-4 h-4" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-trade"></use></svg> Contrato flash
+              <svg class="w-4 h-4" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-trade"></use></svg> Reto
             </span>
           </div>
 
@@ -535,68 +509,13 @@
           </div>
         </div>
 
-        <!-- GRÁFICA -->
         <div class="panel p-4 space-y-3">
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex gap-1.5">
-              <button id="btnGraphContrato" onclick="cambiarModoGrafica('CONTRATO')" class="chip chip-active">Activo</button>
-              <button id="btnGraphGlobal" onclick="cambiarModoGrafica('GLOBAL')" class="chip">Índice</button>
-            </div>
-            <span class="text-[13px] font-bold text-dim">1D · en vivo</span>
-          </div>
+          <div class="text-[15px] font-black">Evolución</div>
           <div class="h-48 bg-[#F2EDE1] rounded-2xl relative overflow-hidden p-2">
             <canvas id="tradingChartCanvas"></canvas>
           </div>
         </div>
 
-        <!-- TERMÓMETRO -->
-        <div class="panel p-4 space-y-3">
-          <div class="grid grid-cols-2 gap-3">
-            <div class="flex items-center justify-between text-[13px] font-extrabold text-bull">
-              <span>Confío</span><span id="gaugeBullPct">50%</span>
-            </div>
-            <div class="flex items-center justify-between text-[13px] font-extrabold text-bear">
-              <span>Ni de broma</span><span id="gaugeBearPct">50%</span>
-            </div>
-          </div>
-          <div class="h-3 flex rounded-full overflow-hidden bg-[#F2EDE1]">
-            <div id="sentimentBullBar" class="h-full bg-bull transition-[width] duration-300" style="width: 50%"></div>
-            <div id="sentimentBearBar" class="h-full bg-bear transition-[width] duration-300" style="width: 50%"></div>
-          </div>
-        </div>
-
-        <!-- MOTOR LMSR + INCENTIVOS -->
-        <div class="panel p-4 space-y-3">
-          <div class="flex justify-between text-[13px] font-bold text-dim">
-            <span>Motor de precios LMSR</span><span>B = 100</span>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div class="bg-[#F2EDE1] rounded-2xl p-3">
-              <div class="text-[13px] font-bold text-dim">Confío (q_si)</div>
-              <div id="lmsrQsi" class="font-mono text-[18px] font-black mt-0.5">50.00</div>
-            </div>
-            <div class="bg-[#F2EDE1] rounded-2xl p-3">
-              <div class="text-[13px] font-bold text-dim">Ni de broma (q_no)</div>
-              <div id="lmsrQno" class="font-mono text-[18px] font-black mt-0.5">50.00</div>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div class="bg-[#DFF4E4] rounded-2xl p-3">
-              <div class="text-[13px] font-bold text-[#0E6B33]/80">Prima si cumple</div>
-              <div id="lmsrPrima" class="text-[16px] font-black text-[#0E6B33] mt-0.5">+25.00</div>
-            </div>
-            <div class="bg-[#FBE0E1] rounded-2xl p-3">
-              <div class="text-[13px] font-bold text-[#B4161C]/80">Multa si falla</div>
-              <div id="lmsrMulta" class="text-[16px] font-black text-[#B4161C] mt-0.5">−0.00</div>
-            </div>
-          </div>
-          <p class="text-[13px] text-dim leading-relaxed font-semibold">
-            Prima = 30% de q_no + 25 de bono · Multa = 20% de q_si.<br>
-            El protagonista no puede apostar en contra de sí mismo.
-          </p>
-        </div>
-
-        <!-- CONSOLA DE ORDEN -->
         <div class="panel-hard p-4 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <span class="text-[16px] font-black">Hacer una apuesta</span>
@@ -617,14 +536,6 @@
             <button onclick="ajustarMontoMax()" class="bg-sun text-ink rounded-full py-2 text-[13px] font-extrabold">All-in</button>
           </div>
 
-          <div class="bg-[#F2EDE1] rounded-2xl p-3 flex items-center justify-between gap-2">
-            <span class="text-[13px] font-bold text-dim">Retorno estimado</span>
-            <div class="text-right">
-              <div id="estimatedPayout" class="font-mono text-[18px] font-black">~45.50 <span class="text-[13px] text-dim">$BROK</span></div>
-              <div id="estimatedRoi" class="text-[13px] font-extrabold text-bull">+82.0% ROI</div>
-            </div>
-          </div>
-
           <div class="grid grid-cols-2 gap-2.5 pt-0.5">
             <button id="btnTradeConfio" onclick="ejecutarOrden('SI')" class="btn btn-bull flex-col !gap-0.5 !py-3.5 !rounded-2xl">
               <span class="text-[17px] font-black">Confío</span>
@@ -637,79 +548,57 @@
           </div>
 
           <div class="flex items-center justify-between gap-2 pt-1">
-            <span class="text-[13px] font-bold text-dim">¿Reto finalizado?</span>
+            <span class="text-[13px] font-bold text-dim">¿Ya se sabe el resultado?</span>
             <div class="flex gap-2">
               <button onclick="abrirModalResolucion(false)" class="btn btn-ghost !py-2 !px-3 !text-[13px]">
-                <svg class="w-4 h-4"><use href="#i-camera"></use></svg> Oráculo
+                <svg class="w-4 h-4"><use href="#i-camera"></use></svg> Resolver
               </button>
               <button id="btnTradeVar" onclick="abrirModalResolucion(true)" class="btn btn-alert hidden !py-2 !px-3 !text-[13px]">
-                <svg class="w-4 h-4"><use href="#i-gavel"></use></svg> VAR
+                <svg class="w-4 h-4"><use href="#i-gavel"></use></svg> Impugnar
               </button>
             </div>
           </div>
         </div>
 
-        <!-- SENTENCIA DEL ORÁCULO -->
         <div id="oracleVerdict" class="panel p-4 space-y-3 hidden"></div>
-
-        <!-- LIBRO DE ÓRDENES -->
-        <div class="panel p-4 space-y-3">
-          <div class="text-[16px] font-black">Últimas operaciones</div>
-          <div id="tradeRecentOrders" class="space-y-1.5 max-h-40 overflow-y-auto pr-1"></div>
-        </div>
 
       </section>
 
-      <!-- ===== PESTAÑA: EMITIR ===== -->
+      <!-- ===== PESTAÑA: CREAR ===== -->
       <section id="viewRetos" class="p-4 space-y-3 hidden">
 
-        <div class="flex gap-2">
-          <button id="subtabRetoBtn" onclick="cambiarSubtabProponer('RETO')" class="chip chip-active flex-1 !py-2.5 !text-[14px]">
-            <svg class="w-[18px] h-[18px]" aria-hidden="true"><use href="#i-create"></use></svg> Reto flash
-          </button>
-          <button id="subtabAmigoBtn" onclick="cambiarSubtabProponer('AMIGO')" class="chip flex-1 !py-2.5 !text-[14px]">
-            <svg class="w-[18px] h-[18px]" aria-hidden="true"><use href="#i-rocket"></use></svg> Salida a bolsa
-          </button>
+        <div class="flex items-end justify-between gap-3">
+          <div>
+            <h2 class="text-[24px] font-black text-cream">Nuevo reto</h2>
+            <p class="text-[13px] font-semibold text-white/60 mt-1">Propón un reto y que el grupo apueste.</p>
+          </div>
+          <svg class="w-12 h-12 shrink-0" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-create"></use></svg>
         </div>
 
-        <!-- FORM RETO -->
         <div id="formNuevoReto" class="panel p-5 space-y-4">
-          <div class="flex items-center gap-3">
-            <svg class="w-12 h-12 shrink-0" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-create"></use></svg>
-            <div>
-              <h3 class="text-[21px] font-black leading-tight">Nuevo reto flash</h3>
-              <p class="text-[13px] font-semibold text-dim mt-0.5">La CNMV revisa que sea posible y verificable en foto.</p>
-            </div>
-          </div>
-
-          <div class="bg-[#FBE0E1] rounded-2xl p-4 space-y-1.5">
-            <div class="flex items-center gap-2 text-[13px] font-extrabold text-[#B4161C]">
-              <svg class="w-5 h-5" aria-hidden="true"><use href="#i-warning"></use></svg> Aviso de la CNMV
-            </div>
-            <p class="text-[13px] font-semibold text-[#8A4034] leading-relaxed">Un reto imposible conlleva una multa de <b class="text-[#B4161C]">−10 $BROK</b>.</p>
+          <div class="space-y-2">
+            <span class="text-[14px] font-extrabold block">¿Quién lo tiene que hacer?</span>
+            <div id="selectorAmigos" class="flex gap-2 overflow-x-auto pt-1 pb-1"></div>
           </div>
 
           <div class="space-y-1.5">
-            <label for="selectNuevoRetoTicker" class="text-[14px] font-extrabold text-paper block">¿Sobre quién es el reto?</label>
-            <select id="selectNuevoRetoTicker" class="field"></select>
-          </div>
-
-          <div class="space-y-1.5">
-            <label for="inputNuevoRetoTexto" class="text-[14px] font-extrabold text-paper block">Reto a lograr</label>
+            <label for="inputNuevoRetoTexto" class="text-[14px] font-extrabold block">Reto a lograr</label>
             <div class="flex items-center gap-2 rounded-2xl bg-[#F2EDE1] px-4 py-3 focus-within:ring-[3px] focus-within:ring-brand/20">
               <span class="text-[16px] font-black whitespace-nowrap">Ser capaz de</span>
-              <input id="inputNuevoRetoTexto" type="text" autocomplete="off" placeholder="llegar puntual a la cafetería" class="flex-1 min-w-0 bg-transparent text-[16px] font-semibold placeholder:text-[#A9A296] outline-none">
+              <input id="inputNuevoRetoTexto" type="text" autocomplete="off" placeholder="llegar puntual a la cafetería" class="flex-1 min-w-0 bg-transparent text-[16px] font-semibold placeholder:text-[#98A4AE] outline-none">
             </div>
-            <p class="text-[13px] font-semibold text-dim leading-relaxed">Escribe solo la acción, siempre en positivo. Nada de “llegar tarde” o “no suspender”.</p>
+            <p class="text-[13px] font-semibold text-dim leading-relaxed">Solo la acción, en positivo. Nada de “llegar tarde” o “no suspender”.</p>
           </div>
 
-          <div class="space-y-2">
-            <span class="text-[13px] font-extrabold text-dim block">O usa una sugerencia</span>
-            <div class="flex flex-wrap gap-2">
-              <button type="button" onclick="pegarSugerencia('ir al gimnasio antes de las 8:00')" class="chip !text-[13px]">Madrugar al gym</button>
-              <button type="button" onclick="pegarSugerencia('entregar la práctica de las 23:58 a la primera')" class="chip !text-[13px]">Práctica 23:58</button>
-              <button type="button" onclick="pegarSugerencia('cocinar en casa en vez de pedir Glovo')" class="chip !text-[13px]">No pedir Glovo</button>
-            </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="pegarSugerencia('ir al gimnasio antes de las 8:00')" class="chip !text-[13px]">Madrugar al gym</button>
+            <button type="button" onclick="pegarSugerencia('entregar la práctica de las 23:58 a la primera')" class="chip !text-[13px]">Práctica 23:58</button>
+            <button type="button" onclick="pegarSugerencia('cocinar en casa en vez de pedir Glovo')" class="chip !text-[13px]">No pedir Glovo</button>
+          </div>
+
+          <div class="flex items-start gap-2 text-[12px] font-semibold text-[#B4161C]">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-warning"></use></svg>
+            <span>La CNMV revisa el reto. Si es imposible, multa de −10 $BROK.</span>
           </div>
 
           <div id="cnmvFeedbackBox" class="hidden"></div>
@@ -718,6 +607,10 @@
             Publicar reto
           </button>
         </div>
+
+        <button onclick="document.getElementById('formNuevoAmigo').classList.toggle('hidden')" class="w-full text-center text-[13px] font-extrabold text-white/60 py-1">
+          ¿Falta alguien? Sacar un amigo a bolsa
+        </button>
 
         <!-- FORM IPO -->
         <div id="formNuevoAmigo" class="panel p-5 space-y-4 hidden">
@@ -753,95 +646,45 @@
           </div>
         </div>
 
-        <!-- REGLAS -->
-        <div class="panel p-4 space-y-2">
-          <div class="text-[16px] font-black">Cómo funciona</div>
-          <ul class="text-[13px] font-semibold text-dim leading-relaxed space-y-1.5">
-            <li>· Todos los retos se escriben en positivo: “Ser capaz de…”.</li>
-            <li>· El protagonista no puede apostar en contra de sí mismo.</li>
-            <li>· Un mercado se activa con al menos un <b class="text-bull">Confío</b>.</li>
-            <li>· La prueba es una foto; si hay duda, se resuelve con un selfie de VAR.</li>
-          </ul>
-        </div>
-
       </section>
 
       <!-- ===== PESTAÑA: RANKING ===== -->
       <section id="viewRanking" class="p-4 space-y-3 hidden">
 
+        <div class="flex items-end justify-between gap-3">
+          <div>
+            <h2 class="text-[24px] font-black text-cream">Ranking</h2>
+            <p class="text-[13px] font-semibold text-white/60 mt-1">Quién va ganando esta semana.</p>
+          </div>
+          <svg class="w-12 h-12 shrink-0" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-trophy"></use></svg>
+        </div>
+
         <!-- PODIO -->
         <div class="panel p-5 space-y-3">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <svg class="w-6 h-6" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-trophy"></use></svg>
-              <span class="text-[16px] font-black">Salón de la fama</span>
-            </div>
+            <span class="text-[16px] font-black">Salón de la fama</span>
             <span class="text-[13px] font-bold text-dim">Capital $BROK</span>
           </div>
           <div id="podiumContainer" class="flex items-end justify-center gap-2 pt-2"></div>
         </div>
 
         <!-- PRENDAS SOCIALES -->
-        <div class="bg-[#102A43] text-cream rounded-3xl p-5 shadow-[0_14px_34px_rgba(0,0,0,0.30)] space-y-4">
-          <div class="flex items-center justify-between gap-2 text-[13px] font-bold text-white/70">
-            <span>Prendas sociales</span>
-            <span>Cierre viernes · sem. 42</span>
+        <div class="bg-[#102A43] text-cream rounded-3xl p-4 shadow-[0_14px_34px_rgba(0,0,0,0.30)] flex items-center justify-between gap-4">
+          <div class="min-w-0">
+            <div class="text-[11px] font-bold text-white/55">CEO de la semana</div>
+            <div id="weeklyCeo" class="text-[15px] font-black mt-0.5 truncate">@SAMU</div>
           </div>
-          <div class="grid grid-cols-2 gap-2.5">
-            <div class="bg-white/10 rounded-2xl p-3.5">
-              <div class="text-[13px] font-bold text-white/60">CEO de la semana</div>
-              <div id="weeklyCeo" class="text-[16px] font-black mt-1 leading-tight">@SAMU</div>
-              <div class="text-[13px] font-semibold text-white/60 mt-1 leading-snug">Elige bar o se libra de fregar</div>
-            </div>
-            <div class="bg-[#E5232B] rounded-2xl p-3.5">
-              <div class="text-[13px] font-bold text-white/70">En bancarrota</div>
-              <div id="weeklyBroke" class="text-[16px] font-black text-white mt-1 leading-tight">@MITO</div>
-              <div class="text-[13px] font-semibold text-white/70 mt-1 leading-snug">Ronda y foto 7 días</div>
-            </div>
+          <div class="text-right min-w-0">
+            <div class="text-[11px] font-bold text-white/55">En bancarrota</div>
+            <div id="weeklyBroke" class="text-[15px] font-black text-[#FF9A9A] mt-0.5 truncate">@MITO</div>
           </div>
-          <p class="text-[13px] font-semibold text-white/60 leading-snug">Sin dinero real. Lo que se juega el grupo son prendas de coste cero.</p>
         </div>
 
         <!-- LISTA -->
         <div class="panel p-4 space-y-3">
-          <div class="text-[16px] font-black">Ranking del grupo</div>
-          <div id="rankingListFull" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+          <div class="text-[16px] font-black">Clasificación</div>
+          <div id="rankingListFull" class="space-y-2 max-h-[420px] overflow-y-auto pr-1"></div>
         </div>
-
-        <!-- RECOMPENSA HOSTELERÍA -->
-        <div class="panel p-4 space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-[16px] font-black">Dividendo hostelería</span>
-            <span id="rewardStatus" class="text-[13px] font-extrabold text-brand bg-brand-soft rounded-full px-2.5 py-1">0/5</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <svg class="w-14 h-14 shrink-0" viewBox="0 0 64 64" aria-hidden="true"><use href="#i-fries"></use></svg>
-            <div class="flex-1 min-w-0 space-y-1.5">
-              <div class="text-[16px] font-extrabold">Fuente de patatas · La Tita</div>
-              <p class="text-[13px] font-semibold text-dim leading-snug">5 retos resueltos esta semana desbloquean la ronda grupal.</p>
-              <div class="h-2.5 rounded-full bg-[#F2EDE1] overflow-hidden">
-                <div id="rewardBar" class="h-full bg-brand rounded-full transition-[width] duration-500" style="width: 0%"></div>
-              </div>
-            </div>
-          </div>
-          <div id="rewardNote" class="text-[13px] font-bold text-dim">Faltan 5 retos resueltos</div>
-        </div>
-
-        <!-- NOTICIAS -->
-        <div class="panel p-4 space-y-3">
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-bear blink"></span>
-            <span class="text-[16px] font-black">Cinta de Wall Street</span>
-          </div>
-          <div id="newsFeedList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
-        </div>
-
-        <button onclick="resetearMercado()" class="btn btn-ghost w-full !py-3 !text-[14px]">↺ Reiniciar parqué demo</button>
-
-        <p class="text-center text-[13px] font-semibold text-dim leading-relaxed pb-2">
-          Moneda virtual $BROK · sin dinero real · solo prendas sociales<br>
-          © $BROKERS · Santiago de Compostela · ETSE
-        </p>
 
       </section>
 
@@ -851,8 +694,8 @@
         <div class="bg-[#102A43] text-cream rounded-3xl p-5 shadow-[0_14px_34px_rgba(0,0,0,0.30)] relative overflow-hidden">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <div class="text-[13px] font-bold text-white/70">Tu cartera</div>
-              <div class="text-[20px] font-black mt-0.5">Patrimonio neto</div>
+              <div class="text-[13px] font-bold text-white/70">Tu perfil</div>
+              <div class="text-[20px] font-black mt-0.5">Saldo disponible</div>
             </div>
             <svg class="w-16 h-16 shrink-0 -mt-1" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-wallet"></use></svg>
           </div>
@@ -899,8 +742,10 @@
           <div id="myPositionsList" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
         </div>
 
-        <p class="text-center text-[13px] font-semibold text-dim leading-relaxed">
-          App 100% gratuita · monetización freemium: rescates y comodines
+        <button onclick="resetearMercado()" class="btn btn-ghost w-full !py-3 !text-[14px]">↺ Reiniciar parqué demo</button>
+
+        <p class="text-center text-[11px] font-semibold text-white/40 leading-relaxed">
+          Moneda virtual $BROK · sin dinero real · solo prendas sociales
         </p>
 
       </section>
@@ -908,21 +753,18 @@
     </main>
 
     <!-- NAV INFERIOR -->
-    <nav class="bg-white rounded-t-[28px] shadow-[0_-10px_30px_rgba(28,27,34,0.08)] px-3 pt-2 absolute bottom-0 left-0 right-0 z-40 flex items-center justify-around select-none safe-bottom">
+    <nav class="bg-white rounded-t-[28px] shadow-[0_-10px_30px_rgba(0,0,0,0.22)] px-3 pt-2 absolute bottom-0 left-0 right-0 z-40 flex items-center justify-around select-none safe-bottom">
       <button onclick="cambiarTab('parque')" id="navTabParque" class="nav-btn nav-btn-active">
-        <svg class="w-7 h-7" aria-hidden="true"><use href="#i-market"></use></svg><span>Parqué</span>
-      </button>
-      <button onclick="cambiarTab('trading')" id="navTabTrading" class="nav-btn">
-        <svg class="w-7 h-7" aria-hidden="true"><use href="#i-trade"></use></svg><span>Trading</span>
+        <svg class="w-7 h-7" aria-hidden="true"><use href="#i-market"></use></svg><span>Mercado</span>
       </button>
       <button onclick="cambiarTab('retos')" id="navTabRetos" class="nav-btn">
-        <svg class="w-7 h-7" aria-hidden="true"><use href="#i-create"></use></svg><span>Emitir</span>
+        <svg class="w-7 h-7" aria-hidden="true"><use href="#i-create"></use></svg><span>Crear</span>
       </button>
       <button onclick="cambiarTab('ranking')" id="navTabRanking" class="nav-btn">
-        <svg class="w-7 h-7" aria-hidden="true"><use href="#i-trophy"></use></svg><span>Ricos</span>
+        <svg class="w-7 h-7" aria-hidden="true"><use href="#i-trophy"></use></svg><span>Ranking</span>
       </button>
       <button onclick="cambiarTab('cartera')" id="navTabCartera" class="nav-btn">
-        <svg class="w-7 h-7" aria-hidden="true"><use href="#i-wallet"></use></svg><span>Cartera</span>
+        <svg class="w-7 h-7" aria-hidden="true"><use href="#i-wallet"></use></svg><span>Perfil</span>
       </button>
     </nav>
 
@@ -932,7 +774,7 @@
   <div id="onboardingModal" class="fixed inset-0 bg-[#071726]/55 backdrop-blur-sm z-[70] flex items-center justify-center p-5 hidden">
     <div class="bg-white w-full max-w-sm p-6 relative rounded-[28px] shadow-[0_20px_60px_rgba(28,27,34,0.25)]">
       <div class="flex items-start justify-between gap-2">
-        <svg class="w-16 h-16" viewBox="0 0 96 96" aria-hidden="true"><use href="#i-coin"></use></svg>
+        <img src="/static/icon-200.png" alt="Logo $BROKERS" class="w-16 h-16 rounded-2xl ring-1 ring-black/5">
         <span class="bg-sun text-ink px-3 py-1 text-[13px] font-extrabold rounded-full">Sin contraseña</span>
       </div>
 
@@ -1005,6 +847,7 @@
     let chartInstance = null;
     let modoGraficaActual = 'CONTRATO';
     let filtroMercadoActual = 'TODOS';
+    let tickerRetoSeleccionado = null;
     let tabActiva = 'parque';
     let esImpugnacionActual = false;
     let audioHabilitado = true;
@@ -1017,6 +860,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       iniciarChart();
+      iniciarCarruselScroll();
       iniciarOnboarding();
       cargarEstado();
       setInterval(cargarEstado, 3000);
@@ -1157,12 +1001,26 @@
       return { title: 'El Lobo de Wall Street' };
     }
 
+    /* ---------- CARRUSEL AL SCROLL ---------- */
+    function iniciarCarruselScroll() {
+      const main = document.getElementById('mainViewport');
+      const bloque = document.getElementById('bloqueCarrusel');
+      if (!main || !bloque) return;
+      let oculto = false;
+      main.addEventListener('scroll', () => {
+        if (main.scrollTop > 4 && !oculto) {
+          oculto = true;
+          bloque.classList.add('carrusel-oculto');
+        }
+      }, { passive: true });
+    }
+
     /* ---------- NAVEGACIÓN ---------- */
     function cambiarTab(tab) {
       tabActiva = tab;
       reproducirSonido('click');
 
-      const tabs = ['parque', 'trading', 'retos', 'ranking', 'cartera'];
+      const tabs = ['parque', 'retos', 'ranking', 'cartera'];
       tabs.forEach(t => {
         const view = document.getElementById(`view${t.charAt(0).toUpperCase() + t.slice(1)}`);
         const nav = document.getElementById(`navTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
@@ -1177,15 +1035,53 @@
         if (nav) nav.className = t === tab ? 'nav-btn nav-btn-active' : 'nav-btn';
       });
 
+      const detalle = document.getElementById('viewTrading');
+      if (detalle) detalle.classList.add('hidden');
+
       const carrusel = document.getElementById('bloqueCarrusel');
-      if (carrusel) carrusel.classList.toggle('hidden', !(tab === 'parque' || tab === 'trading'));
+      if (carrusel) {
+        carrusel.classList.toggle('hidden', tab !== 'parque');
+        if (tab === 'parque') carrusel.classList.remove('carrusel-oculto');
+      }
 
       const main = document.getElementById('mainViewport');
       if (main) main.scrollTop = 0;
+    }
 
-      if (tab === 'trading') {
-        setTimeout(() => { if (chartInstance) chartInstance.resize(); }, 100);
+    function abrirDetalle(id) {
+      if (id) mercadoSeleccionadoId = id;
+      reproducirSonido('click');
+
+      ['Parque', 'Retos', 'Ranking', 'Cartera'].forEach(v => {
+        const el = document.getElementById('view' + v);
+        if (el) el.classList.add('hidden');
+      });
+      ['Parque', 'Retos', 'Ranking', 'Cartera'].forEach(v => {
+        const nav = document.getElementById('navTab' + v);
+        if (nav) nav.className = v === 'Parque' ? 'nav-btn nav-btn-active' : 'nav-btn';
+      });
+
+      const detalle = document.getElementById('viewTrading');
+      if (detalle) {
+        detalle.classList.remove('hidden');
+        detalle.classList.remove('view-enter');
+        void detalle.offsetWidth;
+        detalle.classList.add('view-enter');
       }
+
+      const carrusel = document.getElementById('bloqueCarrusel');
+      if (carrusel) carrusel.classList.add('hidden');
+
+      tabActiva = 'detalle';
+      const main = document.getElementById('mainViewport');
+      if (main) main.scrollTop = 0;
+
+      renderizarDetalleTrading();
+      setTimeout(() => { if (chartInstance) chartInstance.resize(); }, 120);
+    }
+
+    function volverAlMercado() {
+      cambiarTab('parque');
     }
 
     /* ---------- ESTADO ---------- */
@@ -1311,13 +1207,13 @@
         const up = cot >= 50;
         const sel = activo && activo.ticker === a.ticker;
         const inicial = (a.nombre || a.ticker || '?').replace('$', '').charAt(0).toUpperCase();
-        return `<button onclick="irATradingPorTicker(${jsarg(a.ticker)})" class="snap-start shrink-0 w-[112px] rounded-3xl p-3 text-left transition active:scale-[0.98] ${sel ? 'bg-[#DFF4E4] ring-2 ring-brand' : 'bg-white shadow-[0_6px_20px_rgba(28,27,34,0.06)]'}">
+        return `<button onclick="irATradingPorTicker(${jsarg(a.ticker)})" class="snap-start flex-1 min-w-[88px] max-w-[200px] rounded-3xl p-3 text-left transition active:scale-[0.98] ${sel ? 'bg-[#DFF4E4] ring-2 ring-inset ring-brand' : 'bg-white shadow-[0_6px_20px_rgba(28,27,34,0.06)]'}">
           <div class="flex items-center justify-between">
             <span class="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-black" style="background:${pastel[idx % pastel.length]}; color:#071726">${esc(inicial)}</span>
             <span class="text-[13px] font-extrabold ${up ? 'text-bull' : 'text-bear'}">${up ? '▲' : '▼'}</span>
           </div>
           <div class="text-[13px] font-extrabold mt-2 truncate">${esc(a.ticker)}</div>
-          <div class="font-mono text-[22px] font-black leading-tight">${cot.toFixed(1)}<span class="text-[13px] font-extrabold text-dim">¢</span></div>
+          <div class="font-mono text-[20px] font-black leading-tight">${cot.toFixed(1)}<span class="text-[13px] font-extrabold text-dim">¢</span></div>
           <div class="text-[13px] font-semibold text-dim truncate">${esc(a.nombre)}</div>
         </button>`;
       }).join('');
@@ -1386,7 +1282,7 @@
         const inicial = (m.ticker || '?').replace('$', '').charAt(0).toUpperCase();
 
         return `
-          <article onclick="seleccionarMercado(${jsarg(m.id)}, true)" class="card relative rounded-3xl p-4 space-y-3 cursor-pointer ${esSeleccionado ? 'bg-[#DFF4E4] ring-2 ring-brand' : 'bg-white shadow-[0_6px_20px_rgba(28,27,34,0.06)]'} ${flash}">
+          <article onclick="abrirDetalle(${jsarg(m.id)})" class="card relative rounded-3xl p-4 space-y-3 cursor-pointer ${esSeleccionado ? 'bg-[#DFF4E4] ring-2 ring-brand' : 'bg-white shadow-[0_6px_20px_rgba(28,27,34,0.06)]'} ${flash}">
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2.5 min-w-0">
                 <span class="w-9 h-9 rounded-full bg-brand-soft text-brand flex items-center justify-center text-[13px] font-black shrink-0">${esc(inicial)}</span>
@@ -1412,7 +1308,7 @@
 
             <div class="flex items-center justify-between gap-2">
               <span class="text-[13px] font-semibold text-dim">${esAbierto ? (haySi ? 'Mercado en vigor' : 'Falta al menos un Confío') : 'Mercado liquidado'}</span>
-              <span class="text-[13px] font-extrabold text-brand">Abrir →</span>
+              <button type="button" onclick="event.stopPropagation(); abrirDetalle(${jsarg(m.id)})" class="bg-[#0E6B33] text-[#FFF9EC] px-3 py-1.5 rounded-full text-[13px] font-extrabold">Abrir →</button>
             </div>
           </article>`;
       }).join('');
@@ -1428,15 +1324,14 @@
     }
 
     function irATradingPorTicker(ticker) {
-      const m = (estadoGlobal.mercados || []).find(x => x.ticker === ticker);
+      const m = (estadoGlobal.mercados || []).find(x => x.ticker === ticker && x.estado === 'ABIERTO') ||
+        (estadoGlobal.mercados || []).find(x => x.ticker === ticker);
       if (m) {
-        seleccionarMercado(m.id, true);
-        cambiarTab('trading');
+        abrirDetalle(m.id);
       } else {
-        const sel = document.getElementById('selectNuevoRetoTicker');
-        if (sel) sel.value = ticker;
         cambiarTab('retos');
-        mostrarToast(`No hay contrato abierto para ${ticker}. Crea uno.`, 'info');
+        seleccionarAmigoParaReto(ticker);
+        mostrarToast(`Sin reto abierto para ${ticker}. Crea uno.`, 'info');
       }
     }
 
@@ -1779,22 +1674,47 @@
     }
 
     function actualizarSelectoresAmigos() {
-      const select = document.getElementById('selectNuevoRetoTicker');
-      if (!select || !estadoGlobal.amigos) return;
+      const cont = document.getElementById('selectorAmigos');
+      if (!cont) return;
+      const amigos = estadoGlobal.amigos || [];
+      if (amigos.length === 0) {
+        cont.innerHTML = '<span class="text-[13px] font-semibold text-dim">Sin amigos todavía. Saca uno a bolsa abajo.</span>';
+        tickerRetoSeleccionado = null;
+        return;
+      }
+      if (!tickerRetoSeleccionado || !amigos.some(a => a.ticker === tickerRetoSeleccionado)) {
+        tickerRetoSeleccionado = amigos[0].ticker;
+      }
+      const pastel = ['#DFF4E4', '#FBE0E1', '#FFF3C4', '#FFE7CC', '#E6F4FF'];
+      cont.innerHTML = amigos.map((a, idx) => {
+        const sel = a.ticker === tickerRetoSeleccionado;
+        const inicial = (a.nombre || a.ticker).replace('$', '').charAt(0).toUpperCase();
+        return `<button type="button" onclick="seleccionarAmigoParaReto(${jsarg(a.ticker)})" class="shrink-0 flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1.5 ${sel ? 'bg-brand text-[#071726]' : 'bg-[#F2EDE1] text-paper'}">
+          <span class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-black" style="background:${sel ? 'rgba(255,255,255,.35)' : pastel[idx % pastel.length]}">${esc(inicial)}</span>
+          <span class="text-[13px] font-extrabold">${esc(a.ticker)}</span>
+        </button>`;
+      }).join('');
+    }
 
-      const currentVal = select.value;
-      select.innerHTML = estadoGlobal.amigos.map(a => `
-        <option value="${esc(a.ticker)}">${esc(a.ticker)} · ${esc(a.nombre)} (${Number(a.cotizacion || 50).toFixed(1)}¢)</option>
-      `).join('');
-      if (currentVal) select.value = currentVal;
+    function seleccionarAmigoParaReto(ticker) {
+      tickerRetoSeleccionado = ticker;
+      actualizarSelectoresAmigos();
+      reproducirSonido('click');
     }
 
     async function crearMercadoSubmit() {
       const creador = getUsuarioActual();
-      const ticker = document.getElementById('selectNuevoRetoTicker').value;
+      const ticker = tickerRetoSeleccionado;
       const texto = document.getElementById('inputNuevoRetoTexto').value.trim();
       const feedback = document.getElementById('cnmvFeedbackBox');
       const btn = document.getElementById('btnCrearMercadoSubmit');
+
+      if (!ticker) {
+        feedback.className = 'bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]';
+        feedback.textContent = 'Primero elige a quién va dirigido el reto.';
+        feedback.classList.remove('hidden');
+        return;
+      }
 
       if (!texto) {
         feedback.className = 'bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]';
@@ -1836,8 +1756,7 @@
         document.getElementById('inputNuevoRetoTexto').value = '';
         mostrarToast('Reto admitido a cotización', 'success');
         cargarEstado();
-        seleccionarMercado(data.mercado.id, true);
-        cambiarTab('trading');
+        abrirDetalle(data.mercado.id);
       } catch (err) {
         feedback.className = 'bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]';
         feedback.textContent = 'No se pudo contactar con la CNMV. Inténtalo de nuevo.';
@@ -1984,17 +1903,10 @@
     }
 
     function renderizarNoticias() {
-      const container = document.getElementById('newsFeedList');
-      if (!container || !estadoGlobal.noticias) return;
-
-      container.innerHTML = estadoGlobal.noticias.slice(0, 15).map(n => `
-        <div class="bg-[#F2EDE1] rounded-2xl p-3">
-          <div class="flex items-center justify-between gap-2 text-[13px] font-bold">
-            <span class="text-brand">${esc(n.ticker || '$MKT')}</span>
-            <span class="text-dim">${esc(n.hora || 'HOY')}</span>
-          </div>
-          <div class="text-[13px] font-semibold leading-snug mt-1">${esc(n.titular)}</div>
-        </div>`).join('');
+      const el = document.getElementById('homeNews');
+      if (!el) return;
+      const noticia = (estadoGlobal.noticias || [])[0];
+      el.textContent = noticia ? noticia.titular : 'Sin titulares todavía.';
     }
 
     /* ---------- CARTERA ---------- */
@@ -2052,7 +1964,7 @@
           posContainer.innerHTML = misPosiciones.slice(-6).reverse().map(p => {
             const esSi = p.apuesta.tipo === 'SI';
             return `
-              <div onclick="seleccionarMercado(${jsarg(p.mercado.id)}, true); cambiarTab('trading');" class="bg-[#F2EDE1] rounded-2xl p-3 flex items-center justify-between gap-2 cursor-pointer">
+              <div onclick="abrirDetalle(${jsarg(p.mercado.id)})" class="bg-[#F2EDE1] rounded-2xl p-3 flex items-center justify-between gap-2 cursor-pointer">
                 <div class="min-w-0">
                   <div class="flex items-center gap-1.5">
                     <span class="bg-brand text-[#071726] rounded-full px-2 py-0.5 text-[13px] font-extrabold">${esc(p.mercado.ticker)}</span>
