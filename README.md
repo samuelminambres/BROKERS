@@ -43,6 +43,12 @@ La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinh
 
 La demo pública no se entrega con un túnel gratuito porque `localhost.run` se cae. Para una demo presencial se usa el HTTPS local; para la entrega formal, el enlace estable es la presentación.
 
+> **Importante para la entrega:** el repositorio debe ser público para que el jurado pueda abrir el repositorio, `raw.githack` y `htmlpreview`. Si el repositorio sigue privado, esos enlaces devuelven 404 aunque el push sea correcto.
+>
+> Alternativa oficial de GitHub Pages: activa Pages en `Settings > Pages > Deploy from a branch > main > / (root)` y usa `https://samuelminambres.github.io/BROKERS/presentacion.html`. Es la opción más estable para el formulario.
+>
+> En **Recursos extra**, sube directamente `presentacion.html`; así el jurado también tiene el archivo aunque falle la red.
+
 ---
 
 ## Funcionalidades
