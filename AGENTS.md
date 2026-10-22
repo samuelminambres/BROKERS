@@ -38,11 +38,12 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
 
 ## 4. Contrato Estricto de API (Backend <-> Frontend)
 - `GET /api/estado` -> Devuelve `{ amigos: [...], mercados: [...], noticias: [...], ranking: [...] }`
+- `POST /api/usuarios` -> Body: `{ usuario, nombre }` (registra el alias con 1.000 $BROK)
 - `POST /api/amigos` -> Body: `{ ticker, nombre }`
 - `POST /api/mercados` -> Body: `{ creador, ticker, pregunta }` (Pasa por filtro CNMV IA)
 - `POST /api/mercados/<id>/apostar` -> Body: `{ usuario, tipo: "SI"|"NO", cantidad: float }`
 - `POST /api/mercados/<id>/resolver` -> `multipart/form-data` con `usuario`, `imagen` (File) y `es_impugnacion` ("true"|"false").
-- `POST /api/reset` -> Reinicia el estado a los valores de demostración iniciales.
+- `POST /api/reset` -> Reinicia el estado a un grupo vacío (sin amigos, retos, usuarios ni noticias).
 
 ## 5. Diseño de `static/index.html` (Obligatorio)
 - Toda creación o edición de `static/index.html` se hace con la skill global `design-taste-frontend` (cargarla antes de tocar el archivo).

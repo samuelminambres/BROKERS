@@ -459,7 +459,7 @@
           </div>
         </div>
 
-        <div class="flex items-start gap-2.5 px-1 pt-1">
+        <div id="homeNewsStrip" class="flex items-start gap-2.5 px-1 pt-1">
           <span class="w-2 h-2 rounded-full bg-bear blink mt-1.5 shrink-0"></span>
           <div class="min-w-0">
             <div class="text-[11px] font-bold text-white/45">Bloomberg de barrio · Último titular</div>
@@ -960,10 +960,11 @@
       }
     }
 
-    function entrarAlParque(e) {
+    async function entrarAlParque(e) {
       if (e) e.preventDefault();
       const input = document.getElementById('inputAlias');
       const error = document.getElementById('onboardingError');
+      const btn = document.querySelector('#formOnboarding button[type="submit"]');
       const alias = (input.value || '').trim().toLowerCase().replace(/^@/, '');
 
       if (!/^[a-z0-9_]{2,12}$/.test(alias)) {
@@ -972,9 +973,22 @@
         return;
       }
 
+      error.classList.add('hidden');
+      if (btn) btn.disabled = true;
       localStorage.setItem('brokers_user', alias);
+
+      try {
+        await fetch('/api/usuarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario: alias, nombre: alias })
+        });
+      } catch (err) { /* el primer reto o apuesta lo registrará igualmente */ }
+
+      if (btn) btn.disabled = false;
       document.getElementById('onboardingModal').classList.add('hidden');
       renderizarUI();
+      await cargarEstado();
       reproducirSonido('jackpot');
       mostrarToast(`Cuenta abierta · @${alias} recibe 1.000 $BROK`, 'success');
     }
@@ -1065,6 +1079,12 @@
         if (!res.ok) throw new Error('Fallo al obtener estado');
         estadoGlobal = await res.json();
         renderizarUI();
+        if ((estadoGlobal.ranking || []).length === 0) {
+          const input = document.getElementById('inputAlias');
+          const alias = localStorage.getItem('brokers_user');
+          if (alias && input && !input.value) input.value = alias;
+          document.getElementById('onboardingModal')?.classList.remove('hidden');
+        }
         if (manual) mostrarToast('Parqué sincronizado', 'info');
       } catch (err) {
         console.error('Error sincronizando:', err);
@@ -1112,7 +1132,12 @@
     function renderizarTickerTape() {
       const tape = document.getElementById('tickerTape');
       if (!tape) return;
-      if (!estadoGlobal.amigos || estadoGlobal.amigos.length === 0) return;
+      if (!estadoGlobal.amigos || estadoGlobal.amigos.length === 0) {
+        tape.classList.remove('marquee');
+        tape.innerHTML = '<span class="text-[#9FB0C0]">Sin activos todavía</span>';
+        return;
+      }
+      tape.classList.add('marquee');
 
       const items = estadoGlobal.amigos.map(a => {
         const cot = Number(a.cotizacion || 50);
@@ -1170,9 +1195,13 @@
       if (contador) contador.textContent = String(amigos.length);
 
       if (amigos.length === 0) {
-        cont.innerHTML = '<span class="text-[13px] text-dim">Sin activos. Saca un amigo a bolsa.</span>';
+        const bloque = document.getElementById('bloqueCarrusel');
+        if (bloque) bloque.classList.add('hidden');
+        cont.innerHTML = '';
         return;
       }
+      const bloque = document.getElementById('bloqueCarrusel');
+      if (bloque) bloque.classList.remove('hidden');
 
       const pastel = ['#EDE9FF', '#DFF4E4', '#FFF4CC', '#FBE0E1', '#E6F4FF'];
       const activo = (estadoGlobal.mercados || []).find(m => m.id === mercadoSeleccionadoId);
@@ -1800,7 +1829,7 @@
       const broke = document.getElementById('weeklyBroke');
       if (!ceo || !broke) return;
 
-      if (ranking.length === 0) {
+      if (ranking.length < 2) {
         ceo.textContent = '—';
         broke.textContent = '—';
         return;
@@ -1857,6 +1886,10 @@
       }
 
       if (listFull) {
+        if (ranking.length === 0) {
+          listFull.innerHTML = '<div class="bg-[#102A43] text-cream rounded-2xl p-4 text-[13px] font-semibold">Aún no hay brokers. Invita a tus amigos para empezar el ranking.</div>';
+          return;
+        }
         listFull.innerHTML = ranking.map((u, idx) => {
           const esYo = u.usuario === getUsuarioActual();
           const rango = getRangoBroker(u.saldo);
@@ -1878,9 +1911,11 @@
 
     function renderizarNoticias() {
       const el = document.getElementById('homeNews');
+      const strip = document.getElementById('homeNewsStrip');
       if (!el) return;
       const noticia = (estadoGlobal.noticias || [])[0];
-      el.textContent = noticia ? noticia.titular : 'Sin titulares todavía.';
+      if (strip) strip.classList.toggle('hidden', !noticia);
+      if (noticia) el.textContent = noticia.titular;
     }
 
     /* ---------- CARTERA ---------- */
@@ -1914,6 +1949,9 @@
 
       const quickSwitchList = document.getElementById('traderQuickSwitchList');
       if (quickSwitchList) {
+        if (ranking.length === 0) {
+          quickSwitchList.innerHTML = '<div class="text-[13px] font-semibold text-dim col-span-2">Aún no hay brokers en el grupo.</div>';
+        } else {
         quickSwitchList.innerHTML = ranking.map(u => {
           const esYo = u.usuario === usuario;
           const inicial = (u.usuario || '?').charAt(0).toUpperCase();
@@ -1928,6 +1966,7 @@
               </div>
             </button>`;
         }).join('');
+        }
       }
 
       const posContainer = document.getElementById('myPositionsList');

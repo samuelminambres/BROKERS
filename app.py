@@ -1,5 +1,6 @@
 import os
 import math
+import re
 import time
 import json
 import uuid
@@ -36,104 +37,12 @@ def calcular_precio_lmsr(q_si: float, q_no: float) -> float:
 
 
 def get_semilla_demo():
-    """Genera el estado demo inicial hilarante para la hackathon."""
+    """Estado inicial vacío: un grupo nuevo no tiene activos, usuarios ni historial."""
     return {
-        "amigos": [
-            {
-                "ticker": "$SAMU",
-                "nombre": "Samu",
-                "descripcion": "Trader de sueños y promesas matutinas al gym.",
-                "cotizacion": 53.74
-            },
-            {
-                "ticker": "$MITO",
-                "nombre": "Mito",
-                "descripcion": "Accionista mayoritario de Deliveroo y Glovo.",
-                "cotizacion": 42.56
-            },
-            {
-                "ticker": "$LUCAS",
-                "nombre": "Lucas",
-                "descripcion": "Deja las prácticas de la universidad para las 23:58.",
-                "cotizacion": 50.00
-            }
-        ],
-        "usuarios": {
-            "samu": {"nombre": "Samu", "saldo": 1000.0},
-            "mito": {"nombre": "Mito", "saldo": 1000.0},
-            "lucas": {"nombre": "Lucas", "saldo": 1000.0},
-            "tiburontrader": {"nombre": "El Lobo de la Uni", "saldo": 1250.0}
-        },
-        "mercados": [
-            {
-                "id": "mkt_1",
-                "ticker": "$SAMU",
-                "creador": "mito",
-                "pregunta": "Ser capaz de ir al gimnasio a las 7:30 AM sin pulsar 'posponer alarma'",
-                "estado": "ABIERTO",  # ABIERTO | RESUELTO
-                "ganador": None,      # "SI" | "NO"
-                "q_si": 65.0,
-                "q_no": 50.0,
-                "precio_si": 53.74,
-                "bote_si": 15.0,
-                "bote_no": 0.0,
-                "total_apostado": 15.0,
-                "apuestas": [
-                    {"usuario": "tiburontrader", "tipo": "SI", "cantidad": 15.0, "timestamp": time.time()}
-                ],
-                "resolucion": None,
-                "impugnado": False,
-                "tramposo": None,
-                "historial_precios": [
-                    {"t": "09:00", "p": 50.0},
-                    {"t": "10:15", "p": 53.74}
-                ]
-            },
-            {
-                "id": "mkt_2",
-                "ticker": "$MITO",
-                "creador": "samu",
-                "pregunta": "Ser capaz de cocinar en casa hoy en vez de pedir hamburguesas por Glovo",
-                "estado": "ABIERTO",
-                "ganador": None,
-                "q_si": 50.0,
-                "q_no": 80.0,
-                "precio_si": 42.56,
-                "bote_si": 0.0,
-                "bote_no": 30.0,
-                "total_apostado": 30.0,
-                "apuestas": [
-                    {"usuario": "lucas", "tipo": "NO", "cantidad": 30.0, "timestamp": time.time()}
-                ],
-                "resolucion": None,
-                "impugnado": False,
-                "tramposo": None,
-                "historial_precios": [
-                    {"t": "09:30", "p": 50.0},
-                    {"t": "11:00", "p": 42.56}
-                ]
-            }
-        ],
-        "noticias": [
-            {
-                "id": "not_1",
-                "titular": "APERTURA DEL PARQUÉ: Los bajistas toman posiciones ante la alarma de $SAMU.",
-                "hora": "09:05",
-                "ticker": "$SAMU"
-            },
-            {
-                "id": "not_2",
-                "titular": "MOVIMIENTO BALLENA: El Lobo de la Uni inyecta capital esperando un milagro fitness.",
-                "hora": "10:20",
-                "ticker": "$SAMU"
-            },
-            {
-                "id": "not_3",
-                "titular": "GLOVO ADVANCE: El mercado descuenta una pizza cuatro quesos en la cartera de $MITO.",
-                "hora": "11:15",
-                "ticker": "$MITO"
-            }
-        ]
+        "amigos": [],
+        "usuarios": {},
+        "mercados": [],
+        "noticias": []
     }
 
 
@@ -230,6 +139,30 @@ def api_estado():
         "noticias": db.get("noticias", []),
         "ranking": ranking
     })
+
+
+@app.route("/api/usuarios", methods=["POST"])
+def api_crear_usuario():
+    """Registra al broker actual sin contraseña y le asigna 1.000 $BROK."""
+    db = cargar_db()
+    data = request.get_json() or {}
+
+    usuario = data.get("usuario", "").strip().lower().lstrip("@")
+    nombre = data.get("nombre", "").strip() or usuario
+
+    if not re.fullmatch(r"[a-z0-9_]{2,12}", usuario):
+        return jsonify({"error": "Alias inválido: 2 a 12 caracteres (letras, números o _)"}), 400
+
+    existia = usuario in db["usuarios"]
+    uid = asegurar_usuario(db, usuario, nombre)
+    guardar_db(db)
+
+    return jsonify({
+        "usuario": uid,
+        "nombre": db["usuarios"][uid]["nombre"],
+        "saldo": db["usuarios"][uid]["saldo"],
+        "nuevo": not existia
+    }), (200 if existia else 201)
 
 
 @app.route("/api/amigos", methods=["POST"])
@@ -669,7 +602,7 @@ def api_resolver(mercado_id):
 @app.route("/api/reset", methods=["POST"])
 def api_reset():
     """
-    Restaura el estado global del mercado a los valores de demostración iniciales.
+    Restaura el estado global del mercado a un grupo vacío.
     """
     db = get_semilla_demo()
     guardar_db(db)
