@@ -2,6 +2,7 @@ import os
 import json
 import random
 import re
+import time
 from dotenv import load_dotenv
 
 # Cargar automáticamente variables de entorno desde .env si existe
@@ -16,7 +17,7 @@ except ImportError:
     GENAI_AVAILABLE = False
 
 MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
-VISION_MODEL_NAME = os.environ.get("GEMINI_VISION_MODEL", "gemini-flash-lite-latest")
+VISION_MODEL_NAME = os.environ.get("GEMINI_VISION_MODEL", "gemini-3.5-flash")
 
 
 def _get_genai_client():
@@ -34,21 +35,22 @@ def _get_genai_client():
         return None
 
 
-def _generar_contenido(client, contents, config=None, modelo=None):
-    """Llama a Gemini con el modelo rápido elegido (texto o visión)."""
-    candidatos = [modelo or MODEL_NAME]
+def _generar_contenido(client, contents, config=None, modelo=None, modelos=None):
+    """Llama a Gemini con el modelo rápido elegido y un fallback opcional."""
+    candidatos = modelos or [modelo or MODEL_NAME]
     ultimo_error = None
-    for modelo in candidatos:
-        if not modelo:
+    for modelo_actual in candidatos:
+        if not modelo_actual:
             continue
         try:
             return client.models.generate_content(
-                model=modelo,
+                model=modelo_actual,
                 contents=contents,
                 config=config
             )
         except Exception as e:
             ultimo_error = e
+            print(f"[IA] Fallo {modelo_actual}: {str(e)[:300]}")
             continue
     raise ultimo_error or RuntimeError("Todos los modelos de Gemini fallaron.")
 
@@ -259,10 +261,26 @@ Criterio estricto:
 Devuelve ÚNICAMENTE un JSON sin bloques markdown:
 {{"cumplido": bool, "veredicto": "SI" o "NO", "confianza": float_entre_0_y_1, "explicacion": "Frase lapidaria explicando el veredicto visual y temporal"}}
 """
-            config = types.GenerateContentConfig(response_mime_type="application/json") if GENAI_AVAILABLE else None
+            config = types.GenerateContentConfig(
+                response_mime_type="application/json",
+                media_resolution=types.MediaResolution.MEDIA_RESOLUTION_MEDIUM
+            ) if GENAI_AVAILABLE else None
             part = types.Part.from_bytes(data=imagen_bytes, mime_type=mime_type or "image/jpeg")
-            response = _generar_contenido(client, contents=[part, prompt], config=config, modelo=VISION_MODEL_NAME)
-            return _extraer_json(response.text)
+            ultimo_error = None
+            for intento in range(2):
+                try:
+                    response = _generar_contenido(
+                        client,
+                        contents=[part, prompt],
+                        config=config,
+                        modelos=[VISION_MODEL_NAME, "gemini-3.6-flash"]
+                    )
+                    return _extraer_json(response.text)
+                except Exception as e:
+                    ultimo_error = e
+                    if intento == 0:
+                        time.sleep(0.8)
+            print(f"[IA] Visión no disponible: {str(ultimo_error)[:300]}")
         except Exception:
             pass
 
