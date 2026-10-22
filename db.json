@@ -17,18 +17,12 @@
       "nombre": "Lucas",
       "descripcion": "Deja las prácticas de la universidad para las 23:58.",
       "cotizacion": 50.0
-    },
-    {
-      "ticker": "$NUEVO",
-      "nombre": "Nuevo Amigo",
-      "descripcion": "Nuevo activo especulativo de alta volatilidad.",
-      "cotizacion": 50.0
     }
   ],
   "usuarios": {
     "samu": {
       "nombre": "Samu",
-      "saldo": 1025.0
+      "saldo": 1000.0
     },
     "mito": {
       "nombre": "Mito",
@@ -41,57 +35,9 @@
     "tiburontrader": {
       "nombre": "El Lobo de la Uni",
       "saldo": 1250.0
-    },
-    "nuevo": {
-      "nombre": "Nuevo Amigo",
-      "saldo": 1025.0
     }
   },
   "mercados": [
-    {
-      "id": "mkt_6230fa03",
-      "ticker": "$NUEVO",
-      "creador": "mito",
-      "pregunta": "Ser capaz de estudiar 2 horas seguidas",
-      "estado": "RESUELTO",
-      "ganador": "SI",
-      "q_si": 75.0,
-      "q_no": 50.0,
-      "precio_si": 56.22,
-      "bote_si": 25.0,
-      "bote_no": 0.0,
-      "total_apostado": 25.0,
-      "apuestas": [
-        {
-          "usuario": "samu",
-          "tipo": "SI",
-          "cantidad": 25.0,
-          "precio_momento": 56.22,
-          "timestamp": 1792671647.174034,
-          "hora": "14:20"
-        }
-      ],
-      "resolucion": {
-        "resuelto_por": "samu",
-        "imagen_url": "/static/uploads/mkt_6230fa03_1792671647_test.jpg",
-        "veredicto": "SI",
-        "explicacion": "Oráculo Visual (Offline): Prueba gráfica admitida a trámite por el tribunal de amigos.",
-        "confianza": 0.88,
-        "hora": "14:20"
-      },
-      "impugnado": false,
-      "tramposo": null,
-      "historial_precios": [
-        {
-          "t": "14:20",
-          "p": 50.0
-        },
-        {
-          "t": "14:20",
-          "p": 56.22
-        }
-      ]
-    },
     {
       "id": "mkt_1",
       "ticker": "$SAMU",
@@ -110,7 +56,7 @@
           "usuario": "tiburontrader",
           "tipo": "SI",
           "cantidad": 15.0,
-          "timestamp": 1792671647.094047
+          "timestamp": 1792677174.2427554
         }
       ],
       "resolucion": null,
@@ -145,7 +91,7 @@
           "usuario": "lucas",
           "tipo": "NO",
           "cantidad": 30.0,
-          "timestamp": 1792671647.0940528
+          "timestamp": 1792677174.242763
         }
       ],
       "resolucion": null,
@@ -164,30 +110,6 @@
     }
   ],
   "noticias": [
-    {
-      "id": "not_1de925",
-      "titular": "RALLY ALCISTA: $NUEVO silencia a los escépticos y deja sin blanca a media clase.",
-      "hora": "14:20",
-      "ticker": "$NUEVO"
-    },
-    {
-      "id": "not_87ccb7",
-      "titular": "VOLUMEN RÉCORD: Samu apuesta fuerte al ALZA por $NUEVO con 25 $BROK.",
-      "hora": "14:20",
-      "ticker": "$NUEVO"
-    },
-    {
-      "id": "not_bd3371",
-      "titular": "ALERTA FINANCIERA: La CNMV aprueba emisión de alto riesgo para $NUEVO.",
-      "hora": "14:20",
-      "ticker": "$NUEVO"
-    },
-    {
-      "id": "not_1567d4",
-      "titular": "SALIDA A BOLSA: $NUEVO debuta en el parqué con una cotización base de 50.0¢.",
-      "hora": "14:20",
-      "ticker": "$NUEVO"
-    },
     {
       "id": "not_1",
       "titular": "APERTURA DEL PARQUÉ: Los bajistas toman posiciones ante la alarma de $SAMU.",

@@ -24,7 +24,11 @@ def _get_genai_client():
     if not GENAI_AVAILABLE or not api_key:
         return None
     try:
-        return genai.Client(api_key=api_key)
+        return genai.Client(
+            api_key=api_key,
+            # Corta la llamada si la red se cuelga para que el fallback offline responda.
+            http_options=types.HttpOptions(timeout=8000),
+        )
     except Exception:
         return None
 

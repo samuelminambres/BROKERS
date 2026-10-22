@@ -43,3 +43,7 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
 - `POST /api/mercados/<id>/apostar` -> Body: `{ usuario, tipo: "SI"|"NO", cantidad: float }`
 - `POST /api/mercados/<id>/resolver` -> `multipart/form-data` con `usuario`, `imagen` (File) y `es_impugnacion` ("true"|"false").
 - `POST /api/reset` -> Reinicia el estado a los valores de demostración iniciales.
+
+## 5. Diseño de `static/index.html` (Obligatorio)
+- Toda creación o edición de `static/index.html` se hace con la skill global `design-taste-frontend` (cargarla antes de tocar el archivo).
+- Si la skill choca con la sección 2 o con la estética Bloomberg Terminal dark, gana este AGENTS.md.
