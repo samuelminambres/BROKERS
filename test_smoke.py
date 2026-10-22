@@ -74,7 +74,24 @@ def test_api_routes():
     assert res_mercado.status_code == 201
     mkt_id = res_mercado.get_json()["mercado"]["id"]
 
-    # 5. Place bet
+    # 5. No bets until the protagonist accepts
+    res_pending = client.post(f"/api/mercados/{mkt_id}/apostar", json={
+        "usuario": "samu",
+        "tipo": "SI",
+        "cantidad": 25.0
+    })
+    assert res_pending.status_code == 400
+    assert "aceptado" in res_pending.get_json()["error"]
+
+    # 6. Only the protagonist can accept
+    res_wrong_accept = client.post(f"/api/mercados/{mkt_id}/aceptar", json={"usuario": "samu"})
+    assert res_wrong_accept.status_code == 403
+
+    res_accept = client.post(f"/api/mercados/{mkt_id}/aceptar", json={"usuario": "nuevo"})
+    assert res_accept.status_code == 200
+    assert res_accept.get_json()["mercado"]["aceptado"] is True
+
+    # 7. Place bet after acceptance
     res_bet = client.post(f"/api/mercados/{mkt_id}/apostar", json={
         "usuario": "samu",
         "tipo": "SI",
@@ -83,22 +100,23 @@ def test_api_routes():
     assert res_bet.status_code == 200
     assert res_bet.get_json()["nuevo_precio"] > 50.0
 
-    # 6. Protagonist cannot bet NO against self
-    res_fraud = client.post(f"/api/mercados/{mkt_id}/apostar", json={
-        "usuario": "nuevo",
-        "tipo": "NO",
-        "cantidad": 10.0
-    })
-    assert res_fraud.status_code == 400
-    assert "Fraude detectado" in res_fraud.get_json()["error"]
+    # 8. Protagonist cannot bet either side on their own market
+    for tipo in ("SI", "NO"):
+        res_fraud = client.post(f"/api/mercados/{mkt_id}/apostar", json={
+            "usuario": "nuevo",
+            "tipo": tipo,
+            "cantidad": 10.0
+        })
+        assert res_fraud.status_code == 400
+        assert "Fraude detectado" in res_fraud.get_json()["error"]
 
-    # 7. Check serving static index.html
+    # 9. Check serving static index.html
     res_home = client.get("/")
     assert res_home.status_code == 200
     assert b"$BROKERS" in res_home.data
     assert b"Bloomberg" in res_home.data
 
-    # 8. Resolver mercado
+    # 10. Resolver mercado
     import io
     fake_img = (io.BytesIO(b"fake image data"), "test.jpg")
     res_solve = client.post(

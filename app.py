@@ -80,6 +80,17 @@ def asegurar_usuario(db, usuario_id: str, nombre: str = None):
     return uid
 
 
+def es_protagonista(db, mercado, usuario):
+    """El protagonista es el dueño del ticker o quien coincide con el nombre del activo."""
+    if not usuario:
+        return False
+    nombres = {mercado.get("ticker", "").replace("$", "").lower()}
+    amigo = next((a for a in db["amigos"] if a["ticker"] == mercado.get("ticker")), None)
+    if amigo and amigo.get("nombre"):
+        nombres.add(amigo["nombre"].strip().lower())
+    return usuario.strip().lower() in nombres
+
+
 # ==========================================
 # RUTAS DE INTERFAZ Y ESTÁTICOS
 # ==========================================
@@ -276,6 +287,9 @@ def api_crear_mercado():
         "creador": creador,
         "pregunta": pregunta_final,
         "estado": "ABIERTO",
+        "aceptado": False,
+        "aceptado_por": None,
+        "aceptado_en": None,
         "ganador": None,
         "q_si": 50.0,
         "q_no": 50.0,
@@ -314,6 +328,33 @@ def api_crear_mercado():
     }), 201
 
 
+@app.route("/api/mercados/<mercado_id>/aceptar", methods=["POST"])
+def api_aceptar_mercado(mercado_id):
+    """El protagonista acepta el reto y abre el mercado a las apuestas."""
+    db = cargar_db()
+    data = request.get_json() or {}
+    usuario = data.get("usuario", "").strip().lower()
+
+    mercado = next((m for m in db["mercados"] if m["id"] == mercado_id), None)
+    if not mercado:
+        return jsonify({"error": "Mercado no encontrado"}), 404
+    if mercado["estado"] != "ABIERTO":
+        return jsonify({"error": "El mercado ya está cerrado o resuelto"}), 400
+    if not es_protagonista(db, mercado, usuario):
+        return jsonify({"error": "Solo el protagonista del reto puede aceptarlo"}), 403
+
+    if not mercado.get("aceptado"):
+        mercado["aceptado"] = True
+        mercado["aceptado_por"] = usuario
+        mercado["aceptado_en"] = datetime.now().strftime("%H:%M")
+        guardar_db(db)
+
+    return jsonify({
+        "mensaje": "Reto aceptado. El mercado queda abierto a apuestas.",
+        "mercado": mercado
+    })
+
+
 @app.route("/api/mercados/<mercado_id>/apostar", methods=["POST"])
 def api_apostar(mercado_id):
     """
@@ -339,20 +380,16 @@ def api_apostar(mercado_id):
 
     if mercado["estado"] != "ABIERTO":
         return jsonify({"error": "El mercado ya está cerrado o resuelto"}), 400
+    if not mercado.get("aceptado"):
+        return jsonify({"error": "El protagonista aún no ha aceptado el reto."}), 400
+
+    # REGLA 3: El protagonista no puede apostar en su propio mercado
+    if es_protagonista(db, mercado, usuario):
+        return jsonify({
+            "error": "Fraude detectado: el protagonista no puede apostar en su propio reto."
+        }), 400
 
     asegurar_usuario(db, usuario)
-
-    # REGLA 3: El protagonista del reto NO puede apostar NO en su propio mercado
-    protagonista_ticker = mercado["ticker"].replace("$", "").lower()
-    amigo_obj = next((a for a in db["amigos"] if a["ticker"] == mercado["ticker"]), None)
-    nombres_protagonista = {protagonista_ticker}
-    if amigo_obj and "nombre" in amigo_obj:
-        nombres_protagonista.add(amigo_obj["nombre"].strip().lower())
-
-    if (usuario in nombres_protagonista) and tipo == "NO":
-        return jsonify({
-            "error": "Fraude detectado: El protagonista del reto tiene prohibido apostar NI_DE_BROMA (NO) contra sí mismo."
-        }), 400
 
     # Comprobación de saldo
     saldo_usuario = db["usuarios"][usuario]["saldo"]
@@ -432,7 +469,10 @@ def api_resolver(mercado_id):
 
     usuario = request.form.get("usuario", "").strip().lower()
     es_impugnacion = request.form.get("es_impugnacion", "false").lower() == "true"
-    
+
+    if not es_impugnacion and mercado["estado"] == "ABIERTO" and not mercado.get("aceptado"):
+        return jsonify({"error": "El reto todavía no ha sido aceptado por el protagonista."}), 400
+
     if "imagen" not in request.files:
         return jsonify({"error": "Se requiere subir un archivo de imagen como evidencia"}), 400
 

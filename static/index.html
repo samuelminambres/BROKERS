@@ -483,7 +483,7 @@
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
               <span id="tradeTickerBadge" class="bg-brand text-[#071726] rounded-full px-3 py-1 text-[13px] font-extrabold shrink-0">$SAMU</span>
-              <span id="tradeStatusBadge" class="tag tag-bull">En vigor</span>
+              <span id="tradeStatusBadge" class="tag tag-dead">Sin aceptar</span>
             </div>
             <span class="flex items-center gap-1.5 text-[13px] font-bold text-dim shrink-0">
               <svg class="w-4 h-4" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-trade"></use></svg> Reto
@@ -498,13 +498,28 @@
             <div class="text-[13px] leading-relaxed text-dim space-y-1 font-semibold">
               <div>Bote <b id="tradeBote" class="text-paper font-extrabold">0.0 $BROK</b></div>
               <div>Creador <b id="tradeCreator" class="text-paper font-extrabold">@mito</b></div>
-              <div>Aceptación <b id="tradeAccepted" class="text-bull font-extrabold">Sí</b></div>
+              <div>Aceptación <b id="tradeAccepted" class="text-alert font-extrabold">Pendiente</b></div>
             </div>
             <div class="text-right">
               <div class="text-[13px] font-bold text-dim">Probabilidad</div>
               <div id="tradeSpotPrice" class="font-mono text-[40px] font-black text-bull leading-none">50.0¢</div>
             </div>
           </div>
+        </div>
+
+        <div id="tradeProtagonistPanel" class="panel-hard p-4 space-y-3 hidden">
+          <div class="flex items-center gap-3">
+            <span class="w-11 h-11 rounded-2xl bg-brand-soft text-brand flex items-center justify-center shrink-0">
+              <svg class="w-6 h-6" viewBox="0 0 48 48" aria-hidden="true"><use href="#i-trade"></use></svg>
+            </span>
+            <div class="min-w-0">
+              <div class="text-[16px] font-black">Eres el protagonista</div>
+              <p id="tradeProtagonistText" class="text-[13px] font-semibold text-dim leading-snug">Acepta el reto para abrir el mercado.</p>
+            </div>
+          </div>
+          <button id="btnAceptarReto" onclick="aceptarReto()" class="btn btn-bull w-full !py-3 !text-[15px]">Aceptar reto</button>
+          <button id="btnSubirPrueba" onclick="abrirModalResolucion(false)" class="btn btn-paper w-full !py-3 !text-[15px] hidden">Subir prueba</button>
+          <button id="btnProtagonistVar" onclick="abrirModalResolucion(true)" class="btn btn-alert w-full !py-3 !text-[15px] hidden">Impugnar con contra-foto (VAR)</button>
         </div>
 
         <div class="panel p-4 space-y-3">
@@ -514,11 +529,13 @@
           </div>
         </div>
 
-        <div class="panel-hard p-4 space-y-3">
+        <div id="tradeBetPanel" class="panel-hard p-4 space-y-3">
           <div class="flex items-center justify-between gap-2">
             <span class="text-[16px] font-black">Hacer una apuesta</span>
             <span class="text-[13px] font-bold text-dim">Saldo <b id="tradingAvailableBalance" class="text-bull">1.000 $BROK</b></span>
           </div>
+
+          <div id="tradeBetNotice" class="hidden bg-sun text-ink rounded-2xl p-3 text-[13px] font-bold leading-snug"></div>
 
           <div class="relative">
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-dim font-extrabold text-[18px]">$</span>
@@ -1075,6 +1092,39 @@
       cambiarTab('parque');
     }
 
+    function esProtagonistaMercado(mercado, usuario = getUsuarioActual()) {
+      if (!mercado) return false;
+      const nombres = new Set([(mercado.ticker || '').replace('$', '').toLowerCase()]);
+      const amigo = (estadoGlobal.amigos || []).find(a => a.ticker === mercado.ticker);
+      if (amigo && amigo.nombre) nombres.add(amigo.nombre.trim().toLowerCase());
+      return nombres.has((usuario || '').trim().toLowerCase());
+    }
+
+    async function aceptarReto() {
+      if (!mercadoSeleccionadoId) return;
+      const btn = document.getElementById('btnAceptarReto');
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch(`/api/mercados/${mercadoSeleccionadoId}/aceptar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario: getUsuarioActual() })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          mostrarToast(data.error || 'No se pudo aceptar el reto', 'error');
+          return;
+        }
+        reproducirSonido('jackpot');
+        mostrarToast('Reto aceptado · el grupo ya puede votar', 'success');
+        cargarEstado();
+      } catch (err) {
+        mostrarToast('Error de conexión con el parqué', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
     /* ---------- ESTADO ---------- */
     async function cargarEstado(manual = false) {
       try {
@@ -1269,7 +1319,7 @@
         const esSeleccionado = m.id === mercadoSeleccionadoId;
         const precio = Number(m.precio_si || 50);
         const esAbierto = m.estado === 'ABIERTO';
-        const haySi = (m.apuestas || []).some(a => a.tipo === 'SI');
+        const aceptado = !!m.aceptado;
         const up = precio >= 50;
 
         const prev = preciosPrevios[m.id];
@@ -1278,8 +1328,8 @@
 
         let tagText, tagClass;
         if (esAbierto) {
-          tagText = haySi ? 'En vigor' : 'Sin aceptar';
-          tagClass = haySi ? 'tag-bull' : 'tag-dead';
+          tagText = aceptado ? 'En vigor' : 'Sin aceptar';
+          tagClass = aceptado ? 'tag-bull' : 'tag-dead';
         } else {
           tagText = `Liquidado · ${m.ganador || '—'}`;
           tagClass = m.ganador === 'SI' ? 'tag-bull' : 'tag-bear';
@@ -1313,7 +1363,7 @@
             </div>
 
             <div class="flex items-center justify-between gap-2">
-              <span class="text-[13px] font-semibold text-dim">${esAbierto ? (haySi ? 'Mercado en vigor' : 'Falta al menos un Confío') : 'Mercado liquidado'}</span>
+              <span class="text-[13px] font-semibold text-dim">${esAbierto ? (aceptado ? 'Mercado en vigor' : 'Pendiente de aceptación') : 'Mercado liquidado'}</span>
               <button type="button" onclick="event.stopPropagation(); abrirDetalle(${jsarg(m.id)})" class="bg-[#0E6B33] text-[#FFF9EC] px-3 py-1.5 rounded-full text-[13px] font-extrabold">Abrir →</button>
             </div>
           </article>`;
@@ -1356,6 +1406,13 @@
       const btnConfio = document.getElementById('btnTradeConfio');
       const btnNiDeBroma = document.getElementById('btnTradeNiDeBroma');
       const btnVar = document.getElementById('btnTradeVar');
+      const betPanel = document.getElementById('tradeBetPanel');
+      const betNotice = document.getElementById('tradeBetNotice');
+      const protagonistPanel = document.getElementById('tradeProtagonistPanel');
+      const protagonistText = document.getElementById('tradeProtagonistText');
+      const btnAceptarReto = document.getElementById('btnAceptarReto');
+      const btnSubirPrueba = document.getElementById('btnSubirPrueba');
+      const btnProtagonistVar = document.getElementById('btnProtagonistVar');
       const bullBar = document.getElementById('sentimentBullBar');
       const bearBar = document.getElementById('sentimentBearBar');
       const bullPctEl = document.getElementById('gaugeBullPct');
@@ -1367,7 +1424,10 @@
 
       const precio = Number(mercado.precio_si || 50);
       const esAbierto = mercado.estado === 'ABIERTO';
-      const haySi = (mercado.apuestas || []).some(a => a.tipo === 'SI');
+      const aceptado = !!mercado.aceptado;
+      const protagonista = esProtagonistaMercado(mercado);
+      const puedeApostar = esAbierto && aceptado && !protagonista;
+      const aliasProtagonista = (mercado.ticker || '').replace('$', '').toLowerCase();
 
       if (badgeTicker) badgeTicker.textContent = mercado.ticker;
       if (questionEl) questionEl.textContent = mercado.pregunta;
@@ -1375,8 +1435,8 @@
       if (boteEl) boteEl.textContent = `${Number(mercado.total_apostado || 0).toFixed(1)} $BROK`;
 
       if (acceptedEl) {
-        acceptedEl.textContent = haySi ? 'Sí' : 'Pendiente';
-        acceptedEl.className = haySi ? 'text-bull font-extrabold' : 'text-alert font-extrabold';
+        acceptedEl.textContent = aceptado ? 'Sí' : 'Pendiente';
+        acceptedEl.className = aceptado ? 'text-bull font-extrabold' : 'text-alert font-extrabold';
       }
 
       if (spotPriceEl) {
@@ -1391,21 +1451,36 @@
 
       if (badgeStatus) {
         if (esAbierto) {
-          badgeStatus.textContent = haySi ? 'En vigor' : 'Sin aceptar';
-          badgeStatus.className = `tag ${haySi ? 'tag-bull' : 'tag-dead'}`;
+          badgeStatus.textContent = aceptado ? 'En vigor' : 'Sin aceptar';
+          badgeStatus.className = `tag ${aceptado ? 'tag-bull' : 'tag-dead'}`;
         } else {
           badgeStatus.textContent = `Liquidado · ${mercado.ganador || '—'}`;
           badgeStatus.className = `tag ${mercado.ganador === 'SI' ? 'tag-bull' : 'tag-bear'}`;
         }
       }
 
-      if (btnConfio) btnConfio.disabled = !esAbierto;
-      if (btnNiDeBroma) btnNiDeBroma.disabled = !esAbierto;
-
-      if (btnVar) {
-        if (!esAbierto && mercado.ganador === 'NO' && !mercado.impugnado) btnVar.classList.remove('hidden');
-        else btnVar.classList.add('hidden');
+      if (protagonistPanel) protagonistPanel.classList.toggle('hidden', !protagonista);
+      if (betPanel) betPanel.classList.toggle('hidden', protagonista);
+      if (btnAceptarReto) btnAceptarReto.classList.toggle('hidden', !protagonista || aceptado || !esAbierto);
+      if (btnSubirPrueba) btnSubirPrueba.classList.toggle('hidden', !protagonista || !aceptado || !esAbierto);
+      if (protagonistText) {
+        protagonistText.textContent = !esAbierto
+          ? 'Este reto ya está liquidado.'
+          : aceptado
+            ? 'Reto aceptado. Cuando lo cumplas, sube una foto como prueba.'
+            : 'Acepta el reto para abrir el mercado. Mientras tanto nadie puede votar.';
       }
+      if (betNotice) {
+        const esperando = esAbierto && !aceptado;
+        betNotice.classList.toggle('hidden', !esperando);
+        if (esperando) betNotice.textContent = `Esperando a que @${aliasProtagonista} acepte el reto.`;
+      }
+      if (btnConfio) btnConfio.disabled = !puedeApostar;
+      if (btnNiDeBroma) btnNiDeBroma.disabled = !puedeApostar;
+
+      const varDisponible = !esAbierto && mercado.ganador === 'NO' && !mercado.impugnado;
+      if (btnVar) btnVar.classList.add('hidden');
+      if (btnProtagonistVar) btnProtagonistVar.classList.toggle('hidden', !protagonista || !varDisponible);
 
       const qsi = Number(mercado.q_si ?? 50);
       const qno = Number(mercado.q_no ?? 50);

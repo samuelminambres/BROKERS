@@ -23,7 +23,8 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
    - Precio instantáneo (`CONFIO`): `round((exp(q_si/B) / (exp(q_si/B) + exp(q_no/B))) * 100, 2)`.
 3. **Polaridad Positiva ("Reto a lograr"):**
    - Todos los contratos son retos positivos ("Ser capaz de..."). El botón verde es `CONFIO` (`SI`) y el rojo es `NI_DE_BROMA` (`NO`).
-   - El protagonista del reto NO puede apostar `NO` en su propio mercado.
+   - El mercado nace pendiente: el protagonista debe aceptar el reto antes de que se permitan apuestas.
+   - El protagonista no puede apostar en su propio mercado (ni `SI` ni `NO`).
 4. **Liquidación y Incentivos Dinámicos del Protagonista:**
    - Bote de usuarios reales: `bote_si = q_si - 50`, `bote_no = q_no - 50`.
    - Si gana `SI` (Cumplió el reto):
@@ -41,6 +42,7 @@ Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un merc
 - `POST /api/usuarios` -> Body: `{ usuario, nombre }` (registra el alias, crea su ticker `$ALIAS` y le asigna 1.000 $BROK)
 - `POST /api/amigos` -> Body: `{ ticker, nombre }`
 - `POST /api/mercados` -> Body: `{ creador, ticker, pregunta }` (Pasa por filtro CNMV IA)
+- `POST /api/mercados/<id>/aceptar` -> Body: `{ usuario }` (Solo el protagonista; abre el mercado)
 - `POST /api/mercados/<id>/apostar` -> Body: `{ usuario, tipo: "SI"|"NO", cantidad: float }`
 - `POST /api/mercados/<id>/resolver` -> `multipart/form-data` con `usuario`, `imagen` (File) y `es_impugnacion` ("true"|"false").
 - `POST /api/reset` -> Reinicia el estado a un grupo vacío (sin amigos, retos, usuarios ni noticias).
