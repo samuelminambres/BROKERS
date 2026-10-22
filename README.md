@@ -6,6 +6,45 @@ La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinh
 
 ---
 
+## Ficha do proxecto
+
+- **Nome:** `$BROKERS`
+- **Descrición:** `$BROKERS` convierte cada grupo de amigos en una bolsa privada: cada miembro cotiza, se lanzan retos y se apuesta `$BROK` con `CONFIO` o `NI DE BROMA` mientras un motor LMSR mueve el precio. La IA valida retos y resuelve capturas con VAR; el MVP es virtual y en Fase 2 tendrá un Modo Adultos 18+ con dinero real, KYC, licencia y límites.
+- **Repositorio:** [github.com/samuelminambres/BROKERS](https://github.com/samuelminambres/BROKERS)
+- **Demo / presentación:** [presentacion.html](https://raw.githack.com/samuelminambres/BROKERS/main/presentacion.html)
+- **Recurso extra:** [`presentacion.html`](presentacion.html), una presentación HTML autocontenida para subir a la plataforma.
+
+> La demo interactiva completa se ejecuta en local. El enlace de presentación es el que debe entregarse al jurado si no hay una URL pública estable.
+
+---
+
+## Qué hace
+
+1. Un usuario crea o se une a varios grupos mediante un código.
+2. Cada grupo tiene sus propios activos, retos, noticias, ranking y cartera.
+3. Al entrar en un grupo, el alias del usuario se convierte en el ticker `$ALIAS`.
+4. El grupo crea retos positivos (`Ser capaz de...`).
+5. El protagonista acepta el reto; hasta entonces nadie puede apostar.
+6. Los miembros apuestan `CONFIO` o `NI_DE_BROMA`.
+7. El protagonista sube una captura de cámara en directo cuando lo cumple.
+8. El oráculo visual evalúa la prueba y la hora; el VAR permite impugnar un `NO`.
+
+---
+
+## Demo / presentación
+
+| Recurso | Enlace |
+|---|---|
+| Repositorio | https://github.com/samuelminambres/BROKERS |
+| Presentación HTML | https://raw.githack.com/samuelminambres/BROKERS/main/presentacion.html |
+| Alternativa de presentación | https://htmlpreview.github.io/?https://github.com/samuelminambres/BROKERS/blob/main/presentacion.html |
+| Demo local | `http://localhost:5000` |
+| Demo con cámara en móvil | `https://TU_IP_LOCAL:5443` (misma Wi-Fi) |
+
+La demo pública no se entrega con un túnel gratuito porque `localhost.run` se cae. Para una demo presencial se usa el HTTPS local; para la entrega formal, el enlace estable es la presentación.
+
+---
+
 ## Funcionalidades
 
 - Varios grupos por usuario: piso, clase, etc.
@@ -22,12 +61,20 @@ La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinh
 
 ---
 
-## Stack
+## Tecnologías
 
-- Python 3 + Flask
-- HTML + Tailwind CSS (CDN) + Chart.js (CDN) + Vanilla JS
-- `google-genai` para CNMV y oráculo visual
-- Persistencia JSON atómica en `db.json`
+| Capa | Tecnología | Uso |
+|---|---|---|
+| Backend | Python 3 + Flask | API, rutas, liquidación y servidor de estáticos. |
+| Frontend | HTML + Tailwind CSS (CDN) | Interfaz mobile-first, sin build step. |
+| Frontend | Vanilla JS | Estado, navegación, cámara, gráficos y fetch relativo. |
+| Gráficos | Chart.js (CDN) | Evolución de precios del contrato. |
+| IA | `google-genai` | Validación CNMV y oráculo visual multimodal. |
+| Precios | LMSR de Hanson | Probabilidad y precio del contrato. |
+| Persistencia | JSON atómico (`db.json`) | Estado local sin base de datos externa. |
+| PWA | Web App Manifest | Instalación y iconos. |
+| Cámara | `getUserMedia` + Canvas | Captura en directo, sin galería. |
+| Tests | pytest | API, grupos, saldos, cámara y fallback IA. |
 
 ---
 
@@ -46,6 +93,7 @@ BROKERS/
 │   └── test_smoke.py       # Tests de API, grupos, saldos y cámara
 ├── scripts/
 │   └── local_https.sh      # HTTPS local para usar la cámara desde el móvil
+├── presentacion.html       # Pitch HTML autocontenido para el jurado
 ├── db.example.json         # Estado inicial vacío
 ├── .env.example            # Variables de entorno de ejemplo
 ├── pytest.ini
@@ -217,6 +265,41 @@ Base: `/api`.
 ```
 
 El archivo se escribe de forma atómica después de cada mutación. No se versiona el estado real de la demo.
+
+---
+
+## Lo que debe saber el jurado
+
+- **Es un MVP virtual:** no hay dinero real, depósitos ni retiradas. La Fase 2 con dinero real, KYC, licencia y límites es una hoja de ruta, no una funcionalidad implementada.
+- **Cada grupo es una economía independiente:** activos, retos, noticias, ranking y cartera por grupo. El mismo usuario puede estar en “Piso”, “Clase” o “Hackathon” sin mezclar saldos.
+- **El motor de precios es LMSR de Hanson:** el precio no lo fija una persona; se mueve con la liquidez de las apuestas.
+- **La IA tiene dos papeles:** la CNMV valida que el reto sea posible/verificable y el oráculo visual evalúa la prueba.
+- **La prueba debe ser en directo:** cámara obligatoria, sin galería, sello temporal y ventana de captura de 2 minutos.
+- **El VAR es una segunda capa:** si el oráculo da `NO`, el protagonista puede impugnar con una contra-foto.
+- **La app funciona sin login:** el alias identifica al broker; no se puede cambiar de broker desde la UI. Es una decisión de MVP, no autenticación fuerte.
+- **La demo interactiva es local:** el túnel gratuito no es estable. Para la entrega formal se comparte la presentación; para la demo presencial se usa localhost o HTTPS local.
+- **La IA puede fallar por cuota:** el backend usa fallback en CNMV y devuelve `503` en el oráculo si no puede verificar; nunca aprueba una foto a ciegas.
+
+---
+
+## Roadmap
+
+### Fase 1 — MVP (actual)
+
+- Grupos múltiples, tickers automáticos y carteras por grupo.
+- Retos, LMSR, apuestas, aceptación, oráculo visual y VAR.
+- PWA mobile-first y persistencia JSON.
+- IA con fallback y demo local/HTTPS.
+
+### Fase 2 — Modo Adultos 18+
+
+- Dinero real con proveedor regulado.
+- KYC/AML, verificación de edad y geolocalización.
+- Licencia, límites de gasto, autoexclusión y juego responsable.
+- Contabilidad auditable, custodia de fondos y resolución de disputas.
+- Moderación de retos y evidencias, consentimiento de imagen y privacidad.
+
+> El Modo Adultos 18+ no está implementado en este repositorio.
 
 ---
 
