@@ -11,7 +11,7 @@ La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinh
 - **Nome:** `$BROKERS`
 - **Descrición:** `$BROKERS` convierte cada grupo de amigos en una bolsa privada: cada miembro cotiza, se lanzan retos y se apuesta `$BROK` con `CONFIO` o `NI DE BROMA` mientras un motor LMSR mueve el precio. La IA valida retos y resuelve capturas con VAR; el MVP es virtual y en Fase 2 tendrá un Modo Adultos 18+ con dinero real, KYC, licencia y límites.
 - **Repositorio:** [github.com/samuelminambres/BROKERS](https://github.com/samuelminambres/BROKERS)
-- **Demo / presentación:** [presentacion-final-v2.html](https://raw.githack.com/samuelminambres/BROKERS/main/presentacion-final-v2.html)
+- **Demo / presentación:** [presentacion-final-v2.html](https://htmlpreview.github.io/?https://github.com/samuelminambres/BROKERS/blob/main/presentacion-final-v2.html)
 - **Recurso extra:** [`presentacion-final-v2.html`](presentacion-final-v2.html), la copia publicada de la presentación HTML autocontenida.
 
 > La demo interactiva completa se ejecuta en local. El enlace de presentación es el que debe entregarse al jurado si no hay una URL pública estable.
@@ -36,18 +36,20 @@ La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinh
 | Recurso | Enlace |
 |---|---|
 | Repositorio | https://github.com/samuelminambres/BROKERS |
-| Presentación HTML | https://raw.githack.com/samuelminambres/BROKERS/main/presentacion-final-v2.html |
-| Alternativa de presentación | https://htmlpreview.github.io/?https://github.com/samuelminambres/BROKERS/blob/main/presentacion-final-v2.html |
+| Presentación HTML | https://htmlpreview.github.io/?https://github.com/samuelminambres/BROKERS/blob/main/presentacion-final-v2.html |
+| Alternativa de presentación | https://raw.githack.com/samuelminambres/BROKERS/main/presentacion-final-v2.html |
 | Demo local | `http://localhost:5000` |
 | Demo con cámara en móvil | `https://TU_IP_LOCAL:5443` (misma Wi-Fi) |
 
 La demo pública no se entrega con un túnel gratuito porque `localhost.run` se cae. Para una demo presencial se usa el HTTPS local; para la entrega formal, el enlace estable es la presentación.
 
-> **Importante para la entrega:** el repositorio debe ser público para que el jurado pueda abrir el repositorio, `raw.githack` y `htmlpreview`. Si el repositorio sigue privado, esos enlaces devuelven 404 aunque el push sea correcto.
+> **Importante para la entrega:** el repositorio debe ser público para que el jurado pueda abrir el repositorio y `htmlpreview`. Si el repositorio sigue privado, esos enlaces devuelven 404 aunque el push sea correcto.
 >
 > Alternativa oficial de GitHub Pages: activa Pages en `Settings > Pages > Deploy from a branch > main > / (root)` y usa `https://samuelminambres.github.io/BROKERS/presentacion-final-v2.html`. Es la opción más estable para el formulario.
 >
 > En **Recursos extra**, sube directamente `presentacion-final-v2.html`; así el jurado también tiene el archivo aunque falle la red.
+>
+> `htmlpreview` es la opción principal verificada; `raw.githack` puede mostrar un aviso de contenido externo en algunos navegadores.
 >
 > Si vuelves a cambiar la presentación, publica una copia con otro nombre (`-v2`, `-v3`...) y usa esa URL. `htmlpreview` y los navegadores cachean por URL.
 
