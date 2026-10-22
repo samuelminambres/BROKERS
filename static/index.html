@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$BROKERS - La Bolsa de Amigos | Bloomberg Terminal</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            terminal: {
+              black: '#07090e',
+              card: '#0f141f',
+              border: '#1c2438',
+              hover: '#182033',
+              bull: '#00e676',
+              bear: '#ff1744',
+              gold: '#ffb300'
+            }
+          },
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Scrollbar personalizada Bloomberg */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #07090e; }
+    ::-webkit-scrollbar-thumb { background: #1c2438; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2a3754; }
+
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px rgba(0, 230, 118, 0.4)); }
+      50% { opacity: 0.8; filter: drop-shadow(0 0 2px rgba(0, 230, 118, 0.2)); }
+    }
+    .bull-glow { animation: pulseGlow 2.5s infinite; }
+    
+    .ticker-scroll {
+      display: inline-flex;
+      white-space: nowrap;
+      animation: marquee 25s linear infinite;
+    }
+    .ticker-scroll:hover {
+      animation-play-state: paused;
+    }
+    @keyframes marquee {
+      0% { transform: translateX(0%); }
+      100% { transform: translateX(-50%); }
+    }
+  </style>
+</head>
+<body class="bg-terminal-black text-slate-200 font-sans min-h-screen flex flex-col selection:bg-terminal-bull selection:text-black">
+
+  <!-- TOP TICKER TAPE -->
+  <div class="bg-[#0b0e17] border-b border-terminal-border overflow-hidden py-1.5 px-4 text-xs font-mono flex items-center select-none">
+    <div class="flex items-center gap-2 pr-4 border-r border-terminal-border shrink-0 text-terminal-gold font-bold">
+      <span class="inline-block w-2 h-2 rounded-full bg-terminal-bull animate-ping"></span>
+      <span>$BROKERS NASDAQ</span>
+    </div>
+    <div class="overflow-hidden w-full whitespace-nowrap ml-4">
+      <div id="tickerTape" class="ticker-scroll gap-8 text-slate-400">
+        <!-- Rellenado dinámicamente -->
+        <span>CARGANDO COTIZACIONES EN VIVO...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER DE CONTROL Y USUARIO -->
+  <header class="bg-terminal-card border-b border-terminal-border px-4 py-3 sticky top-0 z-30 shadow-lg">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <!-- LOGO & SLOGAN -->
+      <div class="flex items-center gap-3">
+        <div class="bg-terminal-bull/10 border border-terminal-bull text-terminal-bull px-2.5 py-1 rounded font-mono font-black text-lg tracking-wider">
+          $BROKERS
+        </div>
+        <div>
+          <h1 class="text-xs uppercase tracking-widest text-slate-400 font-mono">Terminal Bursátil de Amigos</h1>
+          <p class="text-xs text-slate-500">LMSR Hanson Market Engine • V 1.0</p>
+        </div>
+      </div>
+
+      <!-- TERMINAL USER BAR -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center bg-[#07090e] border border-terminal-border rounded-lg px-3 py-1.5 text-xs font-mono">
+          <span class="text-slate-500 mr-2 uppercase">Trader:</span>
+          <input id="currentTrader" type="text" value="samu" class="bg-transparent border-none text-terminal-bull font-bold focus:outline-none w-24 text-sm" placeholder="usuario" onchange="actualizarUsuario()">
+          <span class="text-slate-600 mx-2">|</span>
+          <span class="text-slate-500 mr-1.5">Cartera:</span>
+          <span id="userBalance" class="text-white font-bold text-sm">1,000.00 $BROK</span>
+        </div>
+
+        <!-- BOTONES DE ACCIÓN RÁPIDA -->
+        <button onclick="abrirModalCrearMercado()" class="bg-terminal-bull/20 hover:bg-terminal-bull/30 text-terminal-bull border border-terminal-bull/40 hover:border-terminal-bull px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition flex items-center gap-1.5">
+          <span>+</span> NUEVO CONTRATO
+        </button>
+        <button onclick="resetearMercado()" title="Resetear datos demo" class="text-slate-500 hover:text-slate-300 border border-terminal-border hover:border-slate-600 px-2.5 py-1.5 rounded-lg text-xs font-mono transition">
+          ↺ RESET
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="max-w-7xl mx-auto p-4 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+    
+    <!-- COLUMNA IZQUIERDA: LISTA DE CONTRATOS (4 COLS) -->
+    <div class="lg:col-span-4 flex flex-col gap-4">
+      <div class="bg-terminal-card border border-terminal-border rounded-xl p-4 flex flex-col h-full shadow-sm">
+        <div class="flex items-center justify-between border-b border-terminal-border/60 pb-3 mb-3">
+          <h2 class="font-mono text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+            Contratos Flash Abiertos
+          </h2>
+          <span id="badgeMercadosCount" class="text-[10px] bg-slate-800 text-slate-400 font-mono px-2 py-0.5 rounded">0 activos</span>
+        </div>
+
+        <!-- LISTA DE MERCADOS -->
+        <div id="listaMercados" class="flex flex-col gap-2.5 overflow-y-auto max-h-[620px] pr-1">
+          <!-- Tarjetas inyectadas vía JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA CENTRAL: GRÁFICO Y CONSOLA DE TRADING (5 COLS) -->
+    <div class="lg:col-span-5 flex flex-col gap-4">
+      <!-- TARJETA DEL CONTRATO SELECCIONADO -->
+      <div class="bg-terminal-card border border-terminal-border rounded-xl p-5 shadow-md flex flex-col justify-between">
+        
+        <!-- HEADER DEL CONTRATO -->
+        <div>
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <span id="selectedTicker" class="inline-block bg-terminal-gold/10 border border-terminal-gold/30 text-terminal-gold font-mono font-bold px-2 py-0.5 rounded text-xs">
+                $SAMU
+              </span>
+              <span id="selectedStatus" class="ml-2 text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                MERCADO ABIERTO
+              </span>
+            </div>
+            <!-- PRECIO SPOT PROBABILIDAD -->
+            <div class="text-right">
+              <div id="selectedPrice" class="font-mono text-3xl font-black text-terminal-bull">
+                50.0¢
+              </div>
+              <div class="text-[10px] text-slate-500 font-mono uppercase tracking-wider">
+                Probabilidad Confianza
+              </div>
+            </div>
+          </div>
+
+          <h3 id="selectedQuestion" class="mt-3 text-base font-semibold text-white leading-snug">
+            Cargando detalles del contrato bursátil...
+          </h3>
+
+          <div class="mt-2 text-xs text-slate-500 flex items-center gap-4 font-mono">
+            <span>Creador: <b id="selectedCreator" class="text-slate-300">@mito</b></span>
+            <span>Volumen: <b id="selectedVolume" class="text-slate-300">0.0 $BROK</b></span>
+          </div>
+        </div>
+
+        <!-- GRÁFICA EN VIVO DE LMSR -->
+        <div class="mt-4 bg-[#07090e] border border-terminal-border rounded-lg p-3 relative h-56">
+          <canvas id="marketChart"></canvas>
+        </div>
+
+        <!-- CONSOLA DE APUESTAS LMSR -->
+        <div class="mt-5 pt-4 border-t border-terminal-border">
+          <div class="flex items-center justify-between text-xs font-mono mb-2">
+            <span class="text-slate-400">IMPORTE APOSTAR:</span>
+            <div class="flex gap-1.5">
+              <button onclick="setCantidadApuesta(10)" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-mono">+10</button>
+              <button onclick="setCantidadApuesta(50)" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-mono">+50</button>
+              <button onclick="setCantidadApuesta(100)" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-mono">+100</button>
+              <button onclick="setMaxApuesta()" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-terminal-gold rounded text-[11px] font-mono">TODO</button>
+            </div>
+          </div>
+
+          <!-- INPUT DE MONTO -->
+          <div class="relative mb-4">
+            <input id="inputCantidad" type="number" min="1" step="5" value="25" class="w-full bg-[#07090e] border border-terminal-border rounded-lg py-2.5 px-4 text-white font-mono font-bold text-lg focus:outline-none focus:border-terminal-bull transition pl-10" placeholder="25">
+            <span class="absolute left-3.5 top-3 text-slate-500 font-mono font-bold text-sm">$</span>
+            <span class="absolute right-3.5 top-3.5 text-xs text-slate-500 font-mono">$BROK</span>
+          </div>
+
+          <!-- BOTONES PRINCIPALES DE APUESTA -->
+          <div class="grid grid-cols-2 gap-3">
+            <button id="btnConfio" onclick="enviarApuesta('SI')" class="group relative overflow-hidden bg-emerald-600/20 hover:bg-emerald-600/30 text-terminal-bull border border-terminal-bull/40 hover:border-terminal-bull py-3 px-4 rounded-xl font-mono font-bold transition duration-150 flex flex-col items-center justify-center">
+              <div class="flex items-center gap-1.5 text-sm sm:text-base">
+                <span>CONFÍO</span>
+                <span class="text-xs">📈</span>
+              </div>
+              <span class="text-[10px] text-emerald-400 font-normal uppercase mt-0.5">COMPRAR LONG</span>
+            </button>
+
+            <button id="btnNiDeBroma" onclick="enviarApuesta('NO')" class="group relative overflow-hidden bg-rose-600/20 hover:bg-rose-600/30 text-terminal-bear border border-terminal-bear/40 hover:border-terminal-bear py-3 px-4 rounded-xl font-mono font-bold transition duration-150 flex flex-col items-center justify-center">
+              <div class="flex items-center gap-1.5 text-sm sm:text-base">
+                <span>NI DE BROMA</span>
+                <span class="text-xs">📉</span>
+              </div>
+              <span class="text-[10px] text-rose-400 font-normal uppercase mt-0.5">VENDER SHORT</span>
+            </button>
+          </div>
+
+          <!-- BOTÓN DE RESOLUCIÓN ORÁCULO O VAR -->
+          <div id="resolverBar" class="mt-3 flex items-center justify-between bg-slate-900/60 border border-slate-800 rounded-lg p-2.5 text-xs font-mono">
+            <span class="text-slate-400 text-[11px]">¿Ha finalizado el reto?</span>
+            <div class="flex gap-2">
+              <button onclick="abrirModalResolver(false)" class="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 px-2.5 py-1 rounded transition text-xs flex items-center gap-1">
+                📷 Oráculo Visual
+              </button>
+              <button id="btnVar" onclick="abrirModalResolver(true)" class="hidden bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded transition text-xs flex items-center gap-1">
+                ⚖️ Impugnar VAR
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: RANKING DE RICOS & NOTICIAS WALL STREET (3 COLS) -->
+    <div class="lg:col-span-3 flex flex-col gap-4">
+      
+      <!-- RANKING DE RICOS -->
+      <div class="bg-terminal-card border border-terminal-border rounded-xl p-4 shadow-sm">
+        <h2 class="font-mono text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-2 border-b border-terminal-border/60 pb-3 mb-3">
+          <span class="text-terminal-gold">🏆</span>
+          Ranking de Ricos ($BROK)
+        </h2>
+        <div id="rankingList" class="flex flex-col gap-2 max-h-56 overflow-y-auto">
+          <!-- Inyectado por JS -->
+        </div>
+      </div>
+
+      <!-- NOTICIAS CNMV WALL STREET -->
+      <div class="bg-terminal-card border border-terminal-border rounded-xl p-4 shadow-sm flex-1 flex flex-col">
+        <h2 class="font-mono text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-2 border-b border-terminal-border/60 pb-3 mb-3">
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+          Cinta CNMV & Wall Street
+        </h2>
+        <div id="newsFeed" class="flex flex-col gap-2.5 overflow-y-auto max-h-[380px] text-xs font-mono pr-1">
+          <!-- Inyectado por JS -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- MODAL: CREAR NUEVO MERCADO CON CNMV IA -->
+  <div id="modalCrearMercado" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-terminal-card border border-terminal-border rounded-2xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-terminal-border pb-3 mb-4">
+        <h3 class="font-mono text-sm uppercase tracking-wider text-white font-bold flex items-center gap-2">
+          <span>🏛️</span> Emitir Nuevo Contrato Flash
+        </h3>
+        <button onclick="cerrarModalCrearMercado()" class="text-slate-500 hover:text-white font-mono text-lg">&times;</button>
+      </div>
+
+      <div class="text-xs text-slate-400 mb-4 bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+        <span class="text-terminal-gold font-bold">Aviso CNMV:</span> Los retos imposibles acarrean sanción de <b class="text-rose-400">-10 $BROK</b>. Si está en negativo, la IA lo reescribirá en positivo.
+      </div>
+
+      <div class="flex flex-col gap-3 font-mono text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">AMIGO / TICKER:</label>
+          <select id="inputNuevoTicker" class="w-full bg-[#07090e] border border-terminal-border rounded-lg p-2.5 text-white focus:outline-none focus:border-terminal-bull">
+            <!-- Rellenado dinámicamente con amigos -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">RETO A EVALUAR:</label>
+          <textarea id="inputNuevoReto" rows="3" class="w-full bg-[#07090e] border border-terminal-border rounded-lg p-2.5 text-white focus:outline-none focus:border-terminal-bull" placeholder="Ej: Llegar al examen de las 9:00 antes de que el profesor cierre la puerta"></textarea>
+        </div>
+
+        <div id="alertaCnmvModal" class="hidden p-3 rounded-lg text-xs"></div>
+
+        <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-terminal-border">
+          <button onclick="cerrarModalCrearMercado()" class="px-4 py-2 rounded-lg border border-terminal-border hover:bg-slate-800 transition text-slate-300">Cancelar</button>
+          <button id="btnEmitirMercado" onclick="crearMercadoSubmit()" class="px-4 py-2 rounded-lg bg-terminal-bull text-black font-bold hover:bg-emerald-400 transition flex items-center gap-1.5">
+            <span>Emitir Contrato</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RESOLVER ORÁCULO VISUAL / VAR -->
+  <div id="modalResolver" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-terminal-card border border-terminal-border rounded-2xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-terminal-border pb-3 mb-4">
+        <h3 id="modalResolverTitle" class="font-mono text-sm uppercase tracking-wider text-white font-bold flex items-center gap-2">
+          <span>📷</span> Oráculo Visual de Resolución
+        </h3>
+        <button onclick="cerrarModalResolver()" class="text-slate-500 hover:text-white font-mono text-lg">&times;</button>
+      </div>
+
+      <div id="modalResolverDesc" class="text-xs text-slate-400 mb-4 bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+        Sube la foto que demuestre que el amigo ha cumplido su reto. El Oráculo Multimodal dictará sentencia inapelable.
+      </div>
+
+      <div class="flex flex-col gap-3 font-mono text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">FOTO DE EVIDENCIA:</label>
+          <input id="inputResolverFoto" type="file" accept="image/*" class="w-full bg-[#07090e] border border-terminal-border rounded-lg p-2 text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-mono file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700">
+        </div>
+
+        <div id="resolverFeedback" class="hidden p-3 rounded-lg text-xs"></div>
+
+        <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-terminal-border">
+          <button onclick="cerrarModalResolver()" class="px-4 py-2 rounded-lg border border-terminal-border hover:bg-slate-800 transition text-slate-300">Cancelar</button>
+          <button id="btnResolverSubmit" onclick="resolverMercadoSubmit()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5">
+            <span>Analizar con IA</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICACIÓN TOAST FLOTANTE -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <div id="toastContent" class="bg-terminal-card border border-terminal-bull text-white text-xs font-mono py-2.5 px-4 rounded-xl shadow-2xl flex items-center gap-2">
+      <!-- Inyectado por JS -->
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT VANILLA -->
+  <script>
+    // ESTADO LOCAL DE LA APLICACIÓN
+    let estadoGlobal = { amigos: [], mercados: [], noticias: [], ranking: [] };
+    let mercadoSeleccionadoId = null;
+    let chartInstance = null;
+    let esImpugnacionActual = false;
+
+    // INICIALIZACIÓN
+    window.addEventListener('DOMContentLoaded', () => {
+      cargarEstado();
+      inicializarChart();
+      setInterval(cargarEstado, 3000); // Polling en tiempo real cada 3s
+    });
+
+    function getUsuarioActual() {
+      const input = document.getElementById('currentTrader');
+      return (input && input.value.trim().toLowerCase()) || 'samu';
+    }
+
+    function actualizarUsuario() {
+      cargarEstado();
+      mostrarToast(`Operando ahora como @${getUsuarioActual()}`, 'info');
+    }
+
+    // PETICIÓN AL ENDPOINT /api/estado
+    async function cargarEstado() {
+      try {
+        const res = await fetch('/api/estado');
+        if (!res.ok) throw new Error("Fallo al obtener estado del parqué");
+        const data = await res.json();
+        estadoGlobal = data;
+        renderizarUI();
+      } catch (err) {
+        console.error("Error al sincronizar con /api/estado:", err);
+      }
+    }
+
+    // RENDERIZADO GLOBAL
+    function renderizarUI() {
+      actualizarSaldoUsuario();
+      renderizarTickerTape();
+      renderizarMercados();
+      renderizarRanking();
+      renderizarNoticias();
+      renderizarMercadoDetalle();
+      actualizarSelectAmigosModal();
+    }
+
+    function actualizarSaldoUsuario() {
+      const usuario = getUsuarioActual();
+      const userRank = estadoGlobal.ranking.find(r => r.usuario === usuario);
+      const saldo = userRank ? userRank.saldo : 1000.00;
+      document.getElementById('userBalance').textContent = `${saldo.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $BROK`;
+    }
+
+    function renderizarTickerTape() {
+      const tape = document.getElementById('tickerTape');
+      if (!estadoGlobal.amigos || estadoGlobal.amigos.length === 0) return;
+
+      const items = estadoGlobal.amigos.map(a => {
+        const cot = (a.cotizacion || 50.0).toFixed(1);
+        const icon = cot > 50 ? '▲' : (cot < 50 ? '▼' : '─');
+        const color = cot > 50 ? 'text-terminal-bull' : (cot < 50 ? 'text-terminal-bear' : 'text-slate-400');
+        return `<span class="inline-flex items-center gap-1.5"><b class="text-white">${a.ticker}</b> <span class="${color}">${cot}¢ ${icon}</span></span>`;
+      }).join('&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;');
+
+      tape.innerHTML = `${items}&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;${items}`;
+    }
+
+    function renderizarMercados() {
+      const contenedor = document.getElementById('listaMercados');
+      const countBadge = document.getElementById('badgeMercadosCount');
+      if (!contenedor) return;
+
+      const mercados = estadoGlobal.mercados || [];
+      countBadge.textContent = `${mercados.length} contrato${mercados.length === 1 ? '' : 's'}`;
+
+      if (mercados.length === 0) {
+        contenedor.innerHTML = `<div class="text-center py-8 text-slate-500 font-mono text-xs">Sin contratos activos.<br>Crea el primero con el botón superior.</div>`;
+        return;
+      }
+
+      // Si no hay seleccionado, elegimos el primero
+      if (!mercadoSeleccionadoId || !mercados.some(m => m.id === mercadoSeleccionadoId)) {
+        mercadoSeleccionadoId = mercados[0].id;
+      }
+
+      contenedor.innerHTML = mercados.map(m => {
+        const esSeleccionado = m.id === mercadoSeleccionadoId;
+        const precio = (m.precio_si || 50.0).toFixed(1);
+        const esAbierto = m.estado === 'ABIERTO';
+        const colorPrecio = precio > 50 ? 'text-terminal-bull' : 'text-terminal-bear';
+        const bgSeleccionado = esSeleccionado ? 'bg-terminal-hover border-terminal-bull/40 ring-1 ring-terminal-bull/30' : 'bg-[#090d16] border-terminal-border hover:border-slate-600';
+
+        return `
+          <div onclick="seleccionarMercado('${m.id}')" class="cursor-pointer p-3 rounded-xl border ${bgSeleccionado} transition duration-150 font-mono flex flex-col gap-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-terminal-gold">${m.ticker}</span>
+              <span class="font-black text-sm ${colorPrecio}">${precio}¢</span>
+            </div>
+            <div class="text-xs text-slate-200 line-clamp-2 leading-tight font-sans">
+              ${m.pregunta}
+            </div>
+            <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/80">
+              <span>Bote: ${(m.total_apostado || 0).toFixed(0)} $BROK</span>
+              <span class="${esAbierto ? 'text-emerald-400' : 'text-slate-400'}">
+                ${esAbierto ? '🟢 ABIERTO' : `🏁 RESUELTO (${m.ganador})`}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function seleccionarMercado(id) {
+      mercadoSeleccionadoId = id;
+      renderizarMercados();
+      renderizarMercadoDetalle();
+    }
+
+    function renderizarMercadoDetalle() {
+      const mercado = estadoGlobal.mercados.find(m => m.id === mercadoSeleccionadoId);
+      if (!mercado) return;
+
+      document.getElementById('selectedTicker').textContent = mercado.ticker;
+      document.getElementById('selectedQuestion').textContent = mercado.pregunta;
+      document.getElementById('selectedCreator').textContent = `@${mercado.creador}`;
+      document.getElementById('selectedVolume').textContent = `${(mercado.total_apostado || 0).toFixed(2)} $BROK`;
+      
+      const precio = (mercado.precio_si || 50.0).toFixed(1);
+      document.getElementById('selectedPrice').textContent = `${precio}¢`;
+      document.getElementById('selectedPrice').className = `font-mono text-3xl font-black ${precio >= 50 ? 'text-terminal-bull' : 'text-terminal-bear'}`;
+
+      const statusEl = document.getElementById('selectedStatus');
+      const btnConfio = document.getElementById('btnConfio');
+      const btnNiDeBroma = document.getElementById('btnNiDeBroma');
+      const btnVar = document.getElementById('btnVar');
+
+      if (mercado.estado === 'ABIERTO') {
+        statusEl.textContent = 'MERCADO ABIERTO';
+        statusEl.className = 'ml-2 text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+        btnConfio.disabled = false;
+        btnNiDeBroma.disabled = false;
+        btnVar.classList.add('hidden');
+      } else {
+        statusEl.textContent = `RESUELTO: GANÓ ${mercado.ganador}`;
+        statusEl.className = `ml-2 text-[10px] font-mono px-2 py-0.5 rounded ${mercado.ganador === 'SI' ? 'bg-emerald-950 text-emerald-400 border-emerald-800' : 'bg-rose-950 text-rose-400 border-rose-800'}`;
+        btnConfio.disabled = true;
+        btnNiDeBroma.disabled = true;
+
+        // Si fue resuelto en NO, mostrar opción de VAR
+        if (mercado.ganador === 'NO' && !mercado.impugnado) {
+          btnVar.classList.remove('hidden');
+        } else {
+          btnVar.classList.add('hidden');
+        }
+      }
+
+      actualizarChart(mercado);
+    }
+
+    function renderizarRanking() {
+      const contenedor = document.getElementById('rankingList');
+      if (!contenedor || !estadoGlobal.ranking) return;
+
+      contenedor.innerHTML = estadoGlobal.ranking.map((u, idx) => {
+        const medallas = ['🥇', '🥈', '🥉'];
+        const medalla = medallas[idx] || `<span class="text-slate-600 font-mono text-[10px]">${idx + 1}</span>`;
+        const esYo = u.usuario === getUsuarioActual();
+
+        return `
+          <div class="flex items-center justify-between p-2 rounded-lg text-xs font-mono ${esYo ? 'bg-terminal-bull/10 border border-terminal-bull/30' : 'bg-[#090d16] border border-terminal-border/60'}">
+            <div class="flex items-center gap-2">
+              <span class="w-4 text-center">${medalla}</span>
+              <span class="font-bold ${esYo ? 'text-terminal-bull' : 'text-slate-200'}">@${u.usuario}</span>
+            </div>
+            <span class="font-bold text-white">${u.saldo.toFixed(1)} $BROK</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderizarNoticias() {
+      const contenedor = document.getElementById('newsFeed');
+      if (!contenedor || !estadoGlobal.noticias) return;
+
+      contenedor.innerHTML = estadoGlobal.noticias.slice(0, 15).map(n => {
+        return `
+          <div class="p-2.5 rounded-lg bg-[#090d16] border border-terminal-border flex flex-col gap-1">
+            <div class="flex items-center justify-between text-[10px] text-slate-500">
+              <span class="text-terminal-gold font-bold">${n.ticker || '$MKT'}</span>
+              <span>${n.hora || ''}</span>
+            </div>
+            <div class="text-xs text-slate-300 font-sans leading-snug">
+              ${n.titular}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function actualizarSelectAmigosModal() {
+      const select = document.getElementById('inputNuevoTicker');
+      if (!select || !estadoGlobal.amigos) return;
+
+      const currentVal = select.value;
+      select.innerHTML = estadoGlobal.amigos.map(a => `
+        <option value="${a.ticker}">${a.ticker} (${a.nombre})</option>
+      `).join('');
+      if (currentVal) select.value = currentVal;
+    }
+
+    // CHART.JS ENGINE
+    function inicializarChart() {
+      const ctx = document.getElementById('marketChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['09:00', '10:00', '11:00'],
+          datasets: [{
+            label: 'Probabilidad CONFIO (%)',
+            data: [50, 50, 50],
+            borderColor: '#00e676',
+            backgroundColor: 'rgba(0, 230, 118, 0.05)',
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#00e676'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f141f',
+              titleFont: { family: 'ui-monospace' },
+              bodyFont: { family: 'ui-monospace' },
+              borderColor: '#1c2438',
+              borderWidth: 1,
+              callbacks: {
+                label: (ctx) => ` Cotización: ${ctx.parsed.y.toFixed(1)}¢`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(28, 36, 56, 0.4)' },
+              ticks: { color: '#64748b', font: { family: 'ui-monospace', size: 10 } }
+            },
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: 'rgba(28, 36, 56, 0.4)' },
+              ticks: {
+                color: '#64748b',
+                font: { family: 'ui-monospace', size: 10 },
+                callback: (v) => `${v}¢`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function actualizarChart(mercado) {
+      if (!chartInstance) return;
+      const historial = mercado.historial_precios || [{ t: '09:00', p: mercado.precio_si }];
+      chartInstance.data.labels = historial.map(h => h.t);
+      chartInstance.data.datasets[0].data = historial.map(h => h.p);
+      
+      const ultimoPrecio = historial[historial.length - 1].p;
+      const color = ultimoPrecio >= 50 ? '#00e676' : '#ff1744';
+      chartInstance.data.datasets[0].borderColor = color;
+      chartInstance.data.datasets[0].pointBackgroundColor = color;
+      chartInstance.update();
+    }
+
+    // ACCIONES DE TRADING
+    function setCantidadApuesta(val) {
+      const input = document.getElementById('inputCantidad');
+      input.value = (parseFloat(input.value || 0) + val).toFixed(0);
+    }
+
+    function setMaxApuesta() {
+      const usuario = getUsuarioActual();
+      const userRank = estadoGlobal.ranking.find(r => r.usuario === usuario);
+      const saldo = userRank ? userRank.saldo : 1000.0;
+      document.getElementById('inputCantidad').value = Math.floor(saldo);
+    }
+
+    async function enviarApuesta(tipo) {
+      if (!mercadoSeleccionadoId) {
+        mostrarToast("Selecciona un contrato primero", "error");
+        return;
+      }
+
+      const usuario = getUsuarioActual();
+      const cantidad = parseFloat(document.getElementById('inputCantidad').value);
+
+      if (isNaN(cantidad) || cantidad <= 0) {
+        mostrarToast("Introduce un importe válido", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/mercados/${mercadoSeleccionadoId}/apostar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario, tipo, cantidad })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          mostrarToast(data.error || "Error al procesar la orden", "error");
+          return;
+        }
+
+        mostrarToast(`¡Orden ejecutada! Nueva cotización: ${data.nuevo_precio}¢`, "success");
+        cargarEstado();
+      } catch (err) {
+        mostrarToast("Error de conexión con el parqué", "error");
+      }
+    }
+
+    // MODAL CREAR MERCADO
+    function abrirModalCrearMercado() {
+      document.getElementById('alertaCnmvModal').classList.add('hidden');
+      document.getElementById('inputNuevoReto').value = '';
+      document.getElementById('modalCrearMercado').classList.remove('hidden');
+    }
+
+    function cerrarModalCrearMercado() {
+      document.getElementById('modalCrearMercado').classList.add('hidden');
+    }
+
+    async function crearMercadoSubmit() {
+      const creador = getUsuarioActual();
+      const ticker = document.getElementById('inputNuevoTicker').value;
+      const pregunta = document.getElementById('inputNuevoReto').value.trim();
+      const alerta = document.getElementById('alertaCnmvModal');
+      const btn = document.getElementById('btnEmitirMercado');
+
+      if (!pregunta) {
+        alerta.className = "p-3 rounded-lg text-xs bg-rose-950 text-rose-300 border border-rose-800";
+        alerta.textContent = "Debes escribir el reto para someterlo a la CNMV.";
+        alerta.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "CNMV Evaluando...";
+
+      try {
+        const res = await fetch('/api/mercados', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ creador, ticker, pregunta })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          alerta.className = "p-3 rounded-lg text-xs bg-rose-950 text-rose-300 border border-rose-800";
+          alerta.innerHTML = `<b>RECHAZADO POR LA CNMV:</b> ${data.motivo || data.error}<br><span class="text-rose-400 font-bold">Multa aplicada: -${data.penalizacion} $BROK</span>`;
+          alerta.classList.remove('hidden');
+          cargarEstado();
+          return;
+        }
+
+        cerrarModalCrearMercado();
+        mostrarToast("¡Contrato admitido a cotización por la CNMV!", "success");
+        cargarEstado();
+        seleccionarMercado(data.mercado.id);
+      } catch (err) {
+        alerta.className = "p-3 rounded-lg text-xs bg-rose-950 text-rose-300 border border-rose-800";
+        alerta.textContent = "Fallo de conexión al contactar a la CNMV.";
+        alerta.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Emitir Contrato";
+      }
+    }
+
+    // MODAL RESOLVER MERCADO / VAR
+    function abrirModalResolver(esVar = false) {
+      esImpugnacionActual = esVar;
+      const title = document.getElementById('modalResolverTitle');
+      const desc = document.getElementById('modalResolverDesc');
+      const feedback = document.getElementById('resolverFeedback');
+      feedback.classList.add('hidden');
+      document.getElementById('inputResolverFoto').value = '';
+
+      if (esVar) {
+        title.innerHTML = '<span>⚖️</span> Impugnación VAR (Contra-Foto)';
+        desc.textContent = 'Solo el protagonista puede subir un selfie o prueba para anular el NO y multar doble al acusador.';
+      } else {
+        title.innerHTML = '<span>📷</span> Oráculo Visual de Resolución';
+        desc.textContent = 'Sube la foto que demuestre que el amigo ha cumplido su reto. El Oráculo Multimodal dictará sentencia.';
+      }
+
+      document.getElementById('modalResolver').classList.remove('hidden');
+    }
+
+    function cerrarModalResolver() {
+      document.getElementById('modalResolver').classList.add('hidden');
+    }
+
+    async function resolverMercadoSubmit() {
+      const fileInput = document.getElementById('inputResolverFoto');
+      const feedback = document.getElementById('resolverFeedback');
+      const btn = document.getElementById('btnResolverSubmit');
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        feedback.className = "p-3 rounded-lg text-xs bg-rose-950 text-rose-300 border border-rose-800";
+        feedback.textContent = "Selecciona un archivo de imagen.";
+        feedback.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Oráculo Analizando...";
+
+      const formData = new FormData();
+      formData.append('usuario', getUsuarioActual());
+      formData.append('imagen', fileInput.files[0]);
+      formData.append('es_impugnacion', esImpugnacionActual ? 'true' : 'false');
+
+      try {
+        const res = await fetch(`/api/mercados/${mercadoSeleccionadoId}/resolver`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          feedback.className = "p-3 rounded-lg text-xs bg-rose-950 text-rose-300 border border-rose-800";
+          feedback.textContent = data.error || data.explicacion || "Error al resolver";
+          feedback.classList.remove('hidden');
+          return;
+        }
+
+        cerrarModalResolver();
+        mostrarToast(data.mensaje || "Mercado resuelto con éxito", "success");
+        cargarEstado();
+      } catch (err) {
+        feedback.className = "p-3 rounded-lg text-xs bg-rose-950 text-rose-300 border border-rose-800";
+        feedback.textContent = "Fallo de comunicación con el oráculo visual.";
+        feedback.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Analizar con IA";
+      }
+    }
+
+    // ACCIÓN DE RESET
+    async function resetearMercado() {
+      if (!confirm("¿Deseas reiniciar el parqué de $BROKERS con los datos iniciales?")) return;
+      try {
+        const res = await fetch('/api/reset', { method: 'POST' });
+        if (res.ok) {
+          mostrarToast("Mercado reseteado a valores iniciales", "info");
+          cargarEstado();
+        }
+      } catch (err) {
+        mostrarToast("Error al resetear", "error");
+      }
+    }
+
+    // TOAST FEEDBACK
+    function mostrarToast(msg, tipo = 'info') {
+      const toast = document.getElementById('toast');
+      const content = document.getElementById('toastContent');
+      
+      const borderColor = tipo === 'success' ? 'border-terminal-bull text-terminal-bull' : (tipo === 'error' ? 'border-terminal-bear text-terminal-bear' : 'border-terminal-gold text-terminal-gold');
+      content.className = `bg-[#0f141f] border ${borderColor} text-slate-200 text-xs font-mono py-2.5 px-4 rounded-xl shadow-2xl flex items-center gap-2`;
+      content.innerHTML = `<span>${tipo === 'success' ? '✓' : (tipo === 'error' ? '✕' : 'ℹ')}</span> <span>${msg}</span>`;
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3500);
+    }
+  </script>
+</body>
+</html>
