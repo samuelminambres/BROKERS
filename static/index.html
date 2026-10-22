@@ -856,7 +856,7 @@
 
   <!-- ================= MODAL ORÁCULO / VAR ================= -->
   <div id="modalResolucion" class="fixed inset-0 bg-[#071726]/55 backdrop-blur-sm z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
-    <div class="bg-white max-w-sm w-full p-5 space-y-4 rounded-t-[28px] sm:rounded-[28px] shadow-[0_20px_60px_rgba(28,27,34,0.25)]">
+    <div class="bg-white max-w-sm w-full p-5 space-y-4 rounded-t-[28px] sm:rounded-[28px] shadow-[0_20px_60px_rgba(28,27,34,0.25)] max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <span id="modalResIcon" class="w-12 h-12 rounded-2xl bg-brand-soft flex items-center justify-center text-brand">
@@ -893,6 +893,7 @@
             <button id="btnAbrirCamara" onclick="iniciarCamara()" class="btn btn-ghost !py-2.5 !text-[13px]">Abrir cámara</button>
             <button id="btnCapturarCamara" onclick="capturarFotoCamara()" class="btn btn-paper !py-2.5 !text-[13px] disabled" disabled>Capturar foto</button>
           </div>
+          <button id="btnCambiarCamara" onclick="cambiarCamara()" class="btn btn-ghost w-full !py-2 !text-[13px]">Cambiar a cámara frontal</button>
           <div id="camaraError" class="hidden bg-[#FBE0E1] rounded-2xl p-3 text-[13px] font-semibold text-[#B4161C]"></div>
         </div>
 
@@ -928,6 +929,7 @@
     let invitacionGrupoPendiente = new URLSearchParams(window.location.search).get('grupo');
     let invitacionGrupoMostrada = false;
     let camaraStream = null;
+    let camaraFacing = 'environment';
     let capturaBlob = null;
     let capturaTimestamp = 0;
     let capturaPreviewUrl = null;
@@ -2363,6 +2365,8 @@
       document.getElementById('btnSubmitResolucion').disabled = true;
       capturaBlob = null;
       capturaTimestamp = 0;
+      camaraFacing = 'environment';
+      actualizarBotonCamara();
 
       if (esVar) {
         icon.innerHTML = '<svg class="w-6 h-6"><use href="#i-gavel"></use></svg>';
@@ -2407,6 +2411,21 @@
       if (video) video.srcObject = null;
     }
 
+    function actualizarBotonCamara() {
+      const btn = document.getElementById('btnCambiarCamara');
+      if (!btn) return;
+      btn.textContent = camaraFacing === 'environment'
+        ? 'Cambiar a cámara frontal'
+        : 'Cambiar a cámara trasera';
+    }
+
+    async function cambiarCamara() {
+      camaraFacing = camaraFacing === 'environment' ? 'user' : 'environment';
+      actualizarBotonCamara();
+      reproducirSonido('click');
+      await iniciarCamara();
+    }
+
     async function iniciarCamara() {
       const video = document.getElementById('camaraPreview');
       const placeholder = document.getElementById('camaraPlaceholder');
@@ -2447,7 +2466,7 @@
 
       try {
         camaraStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: { facingMode: { ideal: camaraFacing } },
           audio: false
         });
         video.srcObject = camaraStream;
@@ -2456,7 +2475,10 @@
         await video.play();
         if (btnCapture) btnCapture.disabled = false;
         btnOpen.textContent = 'Reiniciar cámara';
-        status.textContent = 'Cámara en directo. Captura ahora.';
+        actualizarBotonCamara();
+        status.textContent = camaraFacing === 'user'
+          ? 'Cámara frontal en directo. Captura ahora.'
+          : 'Cámara trasera en directo. Captura ahora.';
       } catch (err) {
         detenerCamara();
         video.classList.add('hidden');
