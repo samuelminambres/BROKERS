@@ -23,6 +23,17 @@ def _get_genai_client():
         return None
 
 
+def _extraer_json(raw_text: str) -> dict:
+    """Extrae y decodifica un objeto JSON de una respuesta de texto de forma segura."""
+    texto = raw_text.strip()
+    texto = re.sub(r"^```(?:json)?\s*", "", texto)
+    texto = re.sub(r"\s*```$", "", texto)
+    match = re.search(r"(\{.*\})", texto, re.DOTALL)
+    if match:
+        return json.loads(match.group(1))
+    return json.loads(texto)
+
+
 def validar_reto_cnmv(creador: str, ticker: str, reto: str) -> dict:
     """
     Evalúa si un reto es físicamente posible y verificable en foto según las normas de la CNMV IA.
@@ -53,15 +64,13 @@ Reglas:
 Responde ÚNICAMENTE en formato JSON plano sin bloques markdown:
 {{"valido": bool, "motivo": str, "penalizacion": float, "pregunta_final": str, "reescrito": bool, "comentario": str}}
 """
+            config = types.GenerateContentConfig(response_mime_type="application/json") if GENAI_AVAILABLE else None
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents=prompt
+                contents=prompt,
+                config=config
             )
-            raw_text = response.text.strip()
-            # Limpiar bloques markdown si vinieran
-            raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text)
-            raw_text = re.sub(r"\s*```$", "", raw_text)
-            return json.loads(raw_text)
+            return _extraer_json(response.text)
         except Exception:
             pass
 
@@ -207,15 +216,14 @@ Si la foto es negra, borrosa, irrelevante o un meme sin relación, el veredicto 
 Devuelve ÚNICAMENTE un JSON sin bloques markdown:
 {{"cumplido": bool, "veredicto": "SI" o "NO", "confianza": float_entre_0_y_1, "explicacion": "Frase lapidaria explicando el veredicto visual"}}
 """
+            config = types.GenerateContentConfig(response_mime_type="application/json") if GENAI_AVAILABLE else None
             part = types.Part.from_bytes(data=imagen_bytes, mime_type=mime_type or "image/jpeg")
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
-                contents=[part, prompt]
+                contents=[part, prompt],
+                config=config
             )
-            raw = response.text.strip()
-            raw = re.sub(r"^```(?:json)?\s*", "", raw)
-            raw = re.sub(r"\s*```$", "", raw)
-            return json.loads(raw)
+            return _extraer_json(response.text)
         except Exception:
             pass
 

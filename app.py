@@ -6,6 +6,10 @@ import uuid
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+
+# Cargar automáticamente variables de entorno desde .env si existe
+load_dotenv()
 
 import ai_service
 
@@ -203,11 +207,19 @@ def api_estado():
         })
     ranking.sort(key=lambda x: x["saldo"], reverse=True)
 
-    # Actualizar cotización actual de cada amigo con base en su mercado más reciente
+    # Actualizar cotización actual de cada amigo con base en sus mercados
     cotizaciones_amigos = {a["ticker"]: a.get("cotizacion", 50.0) for a in db["amigos"]}
+    mercados_abiertos = {m["ticker"] for m in db["mercados"] if m["estado"] == "ABIERTO"}
+
     for m in db["mercados"]:
+        ticker = m["ticker"]
         if m["estado"] == "ABIERTO":
-            cotizaciones_amigos[m["ticker"]] = m["precio_si"]
+            # Si hay mercado abierto, manda el precio spot actual
+            cotizaciones_amigos[ticker] = m["precio_si"]
+        elif ticker not in mercados_abiertos and m["estado"] == "RESUELTO":
+            # Si no hay mercado abierto, refleja el resultado del último mercado resuelto
+            cotizaciones_amigos[ticker] = 100.0 if m.get("ganador") == "SI" else 0.0
+
     for a in db["amigos"]:
         if a["ticker"] in cotizaciones_amigos:
             a["cotizacion"] = cotizaciones_amigos[a["ticker"]]
@@ -388,7 +400,12 @@ def api_apostar(mercado_id):
 
     # REGLA 3: El protagonista del reto NO puede apostar NO en su propio mercado
     protagonista_ticker = mercado["ticker"].replace("$", "").lower()
-    if protagonista_ticker == usuario and tipo == "NO":
+    amigo_obj = next((a for a in db["amigos"] if a["ticker"] == mercado["ticker"]), None)
+    nombres_protagonista = {protagonista_ticker}
+    if amigo_obj and "nombre" in amigo_obj:
+        nombres_protagonista.add(amigo_obj["nombre"].strip().lower())
+
+    if (usuario in nombres_protagonista) and tipo == "NO":
         return jsonify({
             "error": "Fraude detectado: El protagonista del reto tiene prohibido apostar NI_DE_BROMA (NO) contra sí mismo."
         }), 400
