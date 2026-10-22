@@ -14,9 +14,18 @@ ENV/
 .flaskenv
 instance/
 
+# Runtime state
+db.json
+db.json.tmp
+.pytest_cache/
+
 # Application generated files
 static/uploads/*
 !static/uploads/.gitkeep
+static/rootCA.crt
+
+# Local HTTPS demo certificates
+.local-tls/
 
 # IDE / System
 .vscode/

@@ -1,7 +1,15 @@
 import json
 import pytest
+import app as app_module
 from app import app, cargar_db, get_semilla_demo, guardar_db, calcular_precio_lmsr
 import ai_service
+
+
+@pytest.fixture(autouse=True)
+def db_temporal(tmp_path, monkeypatch):
+    """Nunca toca el db.json real de la demo."""
+    monkeypatch.setattr(app_module, "DB_PATH", str(tmp_path / "db.json"))
+    app_module.guardar_db(app_module.get_semilla_demo())
 
 
 @pytest.fixture(autouse=True)
