@@ -171,7 +171,7 @@ Usuario: {usuario}
 Cantidad: {cantidad} $BROK
 Contexto reto: {pregunta}
 
-Ejemplo: "PÁNICO EN EL PARQUÉ: $SAMU se desploma un 40% tras sonar su despertador por tercera vez."
+Ejemplo: "PÁNICO EN EL PARQUÉ: $ANA se desploma un 40% tras sonar su despertador por tercera vez."
 Devuelve solo el titular entre mayúsculas y minúsculas sin comillas adicionales.
 """
             response = _generar_contenido(client, contents=prompt)

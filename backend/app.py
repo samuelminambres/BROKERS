@@ -9,17 +9,20 @@ from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_DIR = os.path.join(ROOT_DIR, "static")
+
 # Cargar automáticamente variables de entorno desde .env si existe
-load_dotenv()
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
-import ai_service
+from . import ai_service
 
-app = Flask(__name__, static_folder="static")
-app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "static", "uploads")
+app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="/static")
+app.config["UPLOAD_FOLDER"] = os.path.join(STATIC_DIR, "uploads")
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "db.json")
+DB_PATH = os.path.join(ROOT_DIR, "db.json")
 
 # Constante de liquidez LMSR de Hanson
 B_LIQUIDEZ = 100.0
@@ -230,12 +233,12 @@ def es_protagonista(db, mercado, usuario):
 
 @app.route("/")
 def index():
-    return send_from_directory("static", "index.html")
+    return send_from_directory(STATIC_DIR, "index.html")
 
 
 @app.route("/static/<path:filename>")
 def serve_static(filename):
-    return send_from_directory("static", filename)
+    return send_from_directory(STATIC_DIR, filename)
 
 
 # ==========================================

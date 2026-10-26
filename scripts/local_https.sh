@@ -52,4 +52,4 @@ echo "CA para el móvil: http://$LAN_IP:5000/static/rootCA.crt"
 echo "Instala el CA en el móvil y abre la URL HTTPS. Ctrl-C para parar."
 echo
 
-exec "$PYTHON" -c "import app; app.app.run(host='0.0.0.0', port=$HTTPS_PORT, debug=False, use_reloader=False, ssl_context=('$TLS_DIR/server.crt', '$TLS_DIR/server.key'))"
+exec "$PYTHON" -c "from backend.app import app; app.run(host='0.0.0.0', port=$HTTPS_PORT, debug=False, use_reloader=False, ssl_context=('$TLS_DIR/server.crt', '$TLS_DIR/server.key'))"

@@ -1,8 +1,8 @@
 import json
 import pytest
-import app as app_module
-from app import app, cargar_db, get_semilla_demo, guardar_db, calcular_precio_lmsr
-import ai_service
+from backend import app as app_module
+from backend.app import app, cargar_db, get_semilla_demo, guardar_db, calcular_precio_lmsr
+from backend import ai_service
 
 
 @pytest.fixture(autouse=True)
@@ -29,17 +29,17 @@ def test_lmsr_math():
 
 def test_ai_service_fallback():
     # Absurd challenge
-    res_absurdo = ai_service.validar_reto_cnmv("samu", "$SAMU", "Ir a la Antártida hoy mismo en patinete")
+    res_absurdo = ai_service.validar_reto_cnmv("ana", "$ANA", "Ir a la Antártida hoy mismo en patinete")
     assert res_absurdo["valido"] is False
     assert res_absurdo["penalizacion"] == 10.0
 
     # Reasonable challenge
-    res_ok = ai_service.validar_reto_cnmv("samu", "$SAMU", "Llegar puntual a la clase de finanzas")
+    res_ok = ai_service.validar_reto_cnmv("ana", "$ANA", "Llegar puntual a la clase de finanzas")
     assert res_ok["valido"] is True
     assert "Ser capaz de" in res_ok["pregunta_final"]
 
     # Wallstreet headline
-    titular = ai_service.generar_titular_wallstreet("apuesta", {"ticker": "$SAMU", "usuario": "mito", "cantidad": 50})
+    titular = ai_service.generar_titular_wallstreet("apuesta", {"ticker": "$ANA", "usuario": "luis", "cantidad": 50})
     assert isinstance(titular, str) and len(titular) > 5
 
 def test_usuario_en_dos_grupos_y_tickers_aislados():
@@ -81,7 +81,7 @@ def test_api_routes():
     assert res_reset.status_code == 200
 
     # 2. Get empty estado
-    res_estado = client.get("/api/estado?usuario=mito")
+    res_estado = client.get("/api/estado?usuario=luis")
     assert res_estado.status_code == 200
     data = res_estado.get_json()
     assert "grupos" in data
@@ -91,9 +91,9 @@ def test_api_routes():
     assert "noticias" in data
 
     # 3. Create group and add its members
-    grupo = client.post("/api/grupos", json={"usuario": "mito", "nombre": "Test"}).get_json()["grupo"]
+    grupo = client.post("/api/grupos", json={"usuario": "luis", "nombre": "Test"}).get_json()["grupo"]
     gid = grupo["id"]
-    assert client.post("/api/grupos/unirse", json={"usuario": "samu", "codigo": grupo["codigo"]}).status_code == 200
+    assert client.post("/api/grupos/unirse", json={"usuario": "ana", "codigo": grupo["codigo"]}).status_code == 200
 
     # 4. Add amigo to the group
     res_amigo = client.post("/api/amigos", json={"ticker": "$NUEVO", "nombre": "Nuevo Amigo", "grupo": gid})
@@ -101,7 +101,7 @@ def test_api_routes():
 
     # 5. Create mercado with valid challenge
     res_mercado = client.post("/api/mercados", json={
-        "creador": "mito",
+        "creador": "luis",
         "ticker": "$NUEVO",
         "pregunta": "Ser capaz de estudiar 2 horas seguidas",
         "grupo": gid
@@ -111,7 +111,7 @@ def test_api_routes():
 
     # 5. No bets until the protagonist accepts
     res_pending = client.post(f"/api/mercados/{mkt_id}/apostar", json={
-        "usuario": "samu",
+        "usuario": "ana",
         "tipo": "SI",
         "cantidad": 25.0
     })
@@ -119,7 +119,7 @@ def test_api_routes():
     assert "aceptado" in res_pending.get_json()["error"]
 
     # 6. Only the protagonist can accept
-    res_wrong_accept = client.post(f"/api/mercados/{mkt_id}/aceptar", json={"usuario": "samu"})
+    res_wrong_accept = client.post(f"/api/mercados/{mkt_id}/aceptar", json={"usuario": "ana"})
     assert res_wrong_accept.status_code == 403
 
     res_accept = client.post(f"/api/mercados/{mkt_id}/aceptar", json={"usuario": "nuevo"})
@@ -128,7 +128,7 @@ def test_api_routes():
 
     # 7. Place bet after acceptance
     res_bet = client.post(f"/api/mercados/{mkt_id}/apostar", json={
-        "usuario": "samu",
+        "usuario": "ana",
         "tipo": "SI",
         "cantidad": 25.0
     })
@@ -136,11 +136,11 @@ def test_api_routes():
     assert res_bet.get_json()["nuevo_precio"] > 50.0
 
     # La apuesta descuenta solo el saldo de este grupo
-    estado_grupo = client.get(f"/api/estado?usuario=samu&grupo={gid}").get_json()
-    assert next(u["saldo"] for u in estado_grupo["ranking"] if u["usuario"] == "samu") == 975.0
-    otro_grupo = client.post("/api/grupos", json={"usuario": "samu", "nombre": "Otro"}).get_json()["grupo"]
-    estado_otro = client.get(f"/api/estado?usuario=samu&grupo={otro_grupo['id']}").get_json()
-    assert next(u["saldo"] for u in estado_otro["ranking"] if u["usuario"] == "samu") == 1000.0
+    estado_grupo = client.get(f"/api/estado?usuario=ana&grupo={gid}").get_json()
+    assert next(u["saldo"] for u in estado_grupo["ranking"] if u["usuario"] == "ana") == 975.0
+    otro_grupo = client.post("/api/grupos", json={"usuario": "ana", "nombre": "Otro"}).get_json()["grupo"]
+    estado_otro = client.get(f"/api/estado?usuario=ana&grupo={otro_grupo['id']}").get_json()
+    assert next(u["saldo"] for u in estado_otro["ranking"] if u["usuario"] == "ana") == 1000.0
 
     # 8. Protagonist cannot bet either side on their own market
     for tipo in ("SI", "NO"):
@@ -165,7 +165,7 @@ def test_api_routes():
     res_stale = client.post(
         f"/api/mercados/{mkt_id}/resolver",
         data={
-            "usuario": "samu", "imagen": stale_img, "es_impugnacion": "false",
+            "usuario": "ana", "imagen": stale_img, "es_impugnacion": "false",
             "captura_ts": "0", "origen": "camara"
         },
         content_type="multipart/form-data"
@@ -183,7 +183,7 @@ def test_api_routes():
         res_solve = client.post(
             f"/api/mercados/{mkt_id}/resolver",
             data={
-                "usuario": "samu", "imagen": fake_img, "es_impugnacion": "false",
+                "usuario": "ana", "imagen": fake_img, "es_impugnacion": "false",
                 "captura_ts": str(int(time.time() * 1000)), "origen": "camara"
             },
             content_type="multipart/form-data"

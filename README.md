@@ -1,20 +1,14 @@
 # $BROKERS · La bolsa de amigos
 
-MVP de mercado especulativo en tiempo real para grupos de amigos. Cada persona cotiza como un ticker (`$SAMU`, `$LUCIA`, ...), el grupo crea retos positivos y el resto apuesta monedas virtuales `$BROK` a que se cumplen (`CONFIO`) o no (`NI_DE_BROMA`).
+MVP de mercado especulativo en tiempo real para grupos de amigos. Cada persona cotiza como un ticker (`$ANA`, `$LUIS`, ...), el grupo crea retos positivos y el resto apuesta monedas virtuales `$BROK` a que se cumplen (`CONFIO`) o no (`NI_DE_BROMA`).
 
 La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinhood dark, servida por Flask. No hay React, Node, npm ni base de datos externa: Flask sirve la API y `static/index.html`, y el estado se guarda en `db.json`.
 
 ---
 
-## Ficha do proxecto
+## Resumen
 
-- **Nome:** `$BROKERS`
-- **Descrición:** `$BROKERS` convierte cada grupo de amigos en una bolsa privada: cada miembro cotiza, se lanzan retos y se apuesta `$BROK` con `CONFIO` o `NI DE BROMA` mientras un motor LMSR mueve el precio. La IA valida retos y resuelve capturas con VAR; el MVP es virtual y en Fase 2 tendrá un Modo Adultos 18+ con dinero real, KYC, licencia y límites.
-- **Repositorio:** [github.com/samuelminambres/BROKERS](https://github.com/samuelminambres/BROKERS)
-- **Demo / presentación:** [presentacion-final-v2.html](https://htmlpreview.github.io/?https://github.com/samuelminambres/BROKERS/blob/main/presentacion-final-v2.html)
-- **Recurso extra:** [`presentacion-final-v2.html`](presentacion-final-v2.html), la copia publicada de la presentación HTML autocontenida.
-
-> La demo interactiva completa se ejecuta en local. El enlace de presentación es el que debe entregarse al jurado si no hay una URL pública estable.
+`$BROKERS` convierte cada grupo de amigos en una bolsa privada: cada miembro cotiza, se lanzan retos y se apuesta `$BROK` con `CONFIO` o `NI DE BROMA` mientras un motor LMSR mueve el precio. La IA valida retos y resuelve capturas con VAR. El MVP es virtual; la Fase 2 con dinero real, KYC, licencia y límites es una hoja de ruta.
 
 ---
 
@@ -28,30 +22,6 @@ La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinh
 6. Los miembros apuestan `CONFIO` o `NI_DE_BROMA`.
 7. El protagonista sube una captura de cámara en directo cuando lo cumple.
 8. El oráculo visual evalúa la prueba y la hora; el VAR permite impugnar un `NO`.
-
----
-
-## Demo / presentación
-
-| Recurso | Enlace |
-|---|---|
-| Repositorio | https://github.com/samuelminambres/BROKERS |
-| Presentación HTML | https://htmlpreview.github.io/?https://github.com/samuelminambres/BROKERS/blob/main/presentacion-final-v2.html |
-| Alternativa de presentación | https://raw.githack.com/samuelminambres/BROKERS/main/presentacion-final-v2.html |
-| Demo local | `http://localhost:5000` |
-| Demo con cámara en móvil | `https://TU_IP_LOCAL:5443` (misma Wi-Fi) |
-
-La demo pública no se entrega con un túnel gratuito porque `localhost.run` se cae. Para una demo presencial se usa el HTTPS local; para la entrega formal, el enlace estable es la presentación.
-
-> **Importante para la entrega:** el repositorio debe ser público para que el jurado pueda abrir el repositorio y `htmlpreview`. Si el repositorio sigue privado, esos enlaces devuelven 404 aunque el push sea correcto.
->
-> Alternativa oficial de GitHub Pages: activa Pages en `Settings > Pages > Deploy from a branch > main > / (root)` y usa `https://samuelminambres.github.io/BROKERS/presentacion-final-v2.html`. Es la opción más estable para el formulario.
->
-> En **Recursos extra**, sube directamente `presentacion-final-v2.html`; así el jurado también tiene el archivo aunque falle la red.
->
-> `htmlpreview` es la opción principal verificada; `raw.githack` puede mostrar un aviso de contenido externo en algunos navegadores.
->
-> Si vuelves a cambiar la presentación, publica una copia con otro nombre (`-v2`, `-v3`...) y usa esa URL. `htmlpreview` y los navegadores cachean por URL.
 
 ---
 
@@ -92,8 +62,10 @@ La demo pública no se entrega con un túnel gratuito porque `localhost.run` se 
 
 ```text
 BROKERS/
-├── app.py                  # API Flask, motor LMSR, grupos y liquidación
-├── ai_service.py           # CNMV, titulares y oráculo visual
+├── backend/
+│   ├── __init__.py
+│   ├── app.py              # API Flask, motor LMSR, grupos y liquidación
+│   └── ai_service.py       # CNMV, titulares y oráculo visual
 ├── static/
 │   ├── index.html          # UI completa (HTML + Tailwind + JS inline)
 │   ├── manifest.webmanifest
@@ -103,8 +75,6 @@ BROKERS/
 │   └── test_smoke.py       # Tests de API, grupos, saldos y cámara
 ├── scripts/
 │   └── local_https.sh      # HTTPS local para usar la cámara desde el móvil
-├── presentacion.html       # Fuente editable del pitch
-├── presentacion-final-v2.html # Copia publicada con nombre nuevo (anti-caché)
 ├── db.example.json         # Estado inicial vacío
 ├── .env.example            # Variables de entorno de ejemplo
 ├── pytest.ini
@@ -119,7 +89,7 @@ BROKERS/
 ## Arranque rápido
 
 ```bash
-git clone git@github.com:samuelminambres/BROKERS.git
+git clone <URL_DEL_REPOSITORIO>
 cd BROKERS
 
 python3 -m venv .venv
@@ -128,7 +98,7 @@ pip install -r requirements.txt
 
 cp .env.example .env
 # Edita .env y añade GEMINI_API_KEY
-python app.py
+python -m backend.app
 ```
 
 Abre **http://localhost:5000**.
@@ -158,7 +128,7 @@ La cuota gratuita de Gemini es por proyecto/API key. Si aparece `429`, crea una 
 
 ```bash
 # Terminal 1: app HTTP para servir el CA
-python app.py
+python -m backend.app
 
 # Terminal 2: HTTPS local
 ./scripts/local_https.sh
@@ -180,8 +150,6 @@ https://TU_IP_LOCAL:5443
 - Android: Ajustes > Seguridad > Cifrado y credenciales > Instalar un certificado > CA.
 
 Los certificados quedan en `.local-tls/` y no se suben al repositorio. Si cambia la IP, borra `.local-tls/` y vuelve a ejecutar el script.
-
-> El túnel gratuito de `localhost.run` sirve para una prueba rápida, pero no es estable para una presentación. Para acceso remoto usa un túnel de pago/ngrok con token o despliega la app en un host HTTPS.
 
 ---
 
@@ -212,13 +180,13 @@ Base: `/api`.
 | Método | Ruta | Body / params |
 |---|---|---|
 | `GET` | `/estado?usuario=<alias>&grupo=<id>` | Devuelve grupos, grupo actual, amigos, mercados, noticias y ranking. |
-| `POST` | `/usuarios` | `{ "usuario": "samu", "nombre": "Samu" }` |
-| `POST` | `/grupos` | `{ "usuario": "samu", "nombre": "Piso" }` |
-| `POST` | `/grupos/unirse` | `{ "usuario": "samu", "codigo": "4A9C2F" }` |
-| `POST` | `/amigos` | `{ "ticker": "$LUCIA", "nombre": "Lucía", "grupo": "grp_..." }` |
-| `POST` | `/mercados` | `{ "creador": "samu", "ticker": "$LUCIA", "pregunta": "Ser capaz de...", "grupo": "grp_..." }` |
-| `POST` | `/mercados/<id>/aceptar` | `{ "usuario": "lucia" }` |
-| `POST` | `/mercados/<id>/apostar` | `{ "usuario": "samu", "tipo": "SI"\|"NO", "cantidad": 25 }` |
+| `POST` | `/usuarios` | `{ "usuario": "ana", "nombre": "Ana" }` |
+| `POST` | `/grupos` | `{ "usuario": "ana", "nombre": "Piso" }` |
+| `POST` | `/grupos/unirse` | `{ "usuario": "ana", "codigo": "4A9C2F" }` |
+| `POST` | `/amigos` | `{ "ticker": "$LUIS", "nombre": "Luis", "grupo": "grp_..." }` |
+| `POST` | `/mercados` | `{ "creador": "ana", "ticker": "$LUIS", "pregunta": "Ser capaz de...", "grupo": "grp_..." }` |
+| `POST` | `/mercados/<id>/aceptar` | `{ "usuario": "luis" }` |
+| `POST` | `/mercados/<id>/apostar` | `{ "usuario": "ana", "tipo": "SI"\|"NO", "cantidad": 25 }` |
 | `POST` | `/mercados/<id>/resolver` | `multipart/form-data`: `usuario`, `imagen`, `captura_ts` (epoch ms), `origen="camara"`, `es_impugnacion` |
 | `POST` | `/reset` | Borra grupos, cuentas, retos y noticias. |
 
@@ -252,43 +220,43 @@ Base: `/api`.
       "id": "grp_...",
       "nombre": "Piso",
       "codigo": "4A9C2F",
-      "creador": "samu",
-      "miembros": ["samu"],
-      "saldos": { "samu": 1000.0 },
+      "creador": "ana",
+      "miembros": ["ana"],
+      "saldos": { "ana": 1000.0 },
       "creado": "2026-10-22"
     }
   ],
   "amigos": [
     {
-      "ticker": "$SAMU",
-      "nombre": "Samu",
+      "ticker": "$LUIS",
+      "nombre": "Luis",
       "descripcion": "...",
       "cotizacion": 50.0,
       "grupo": "grp_..."
     }
   ],
   "usuarios": {
-    "samu": { "nombre": "Samu" }
+    "ana": { "nombre": "Ana" }
   },
   "mercados": [],
   "noticias": []
 }
 ```
 
-El archivo se escribe de forma atómica después de cada mutación. No se versiona el estado real de la demo.
+El archivo se escribe de forma atómica después de cada mutación. No se versiona el estado real.
 
 ---
 
-## Lo que debe saber el jurado
+## Decisiones de diseño
 
 - **Es un MVP virtual:** no hay dinero real, depósitos ni retiradas. La Fase 2 con dinero real, KYC, licencia y límites es una hoja de ruta, no una funcionalidad implementada.
-- **Cada grupo es una economía independiente:** activos, retos, noticias, ranking y cartera por grupo. El mismo usuario puede estar en “Piso”, “Clase” o “Hackathon” sin mezclar saldos.
+- **Cada grupo es una economía independiente:** activos, retos, noticias, ranking y cartera por grupo. El mismo usuario puede estar en “Piso” o “Clase” sin mezclar saldos.
 - **El motor de precios es LMSR de Hanson:** el precio no lo fija una persona; se mueve con la liquidez de las apuestas.
 - **La IA tiene dos papeles:** la CNMV valida que el reto sea posible/verificable y el oráculo visual evalúa la prueba.
 - **La prueba debe ser en directo:** cámara obligatoria, sin galería, sello temporal y ventana de captura de 2 minutos.
 - **El VAR es una segunda capa:** si el oráculo da `NO`, el protagonista puede impugnar con una contra-foto.
 - **La app funciona sin login:** el alias identifica al broker; no se puede cambiar de broker desde la UI. Es una decisión de MVP, no autenticación fuerte.
-- **La demo interactiva es local:** el túnel gratuito no es estable. Para la entrega formal se comparte la presentación; para la demo presencial se usa localhost o HTTPS local.
+- **La app se ejecuta en local o por HTTPS local:** no requiere build ni servicios externos salvo la API de Gemini.
 - **La IA puede fallar por cuota:** el backend usa fallback en CNMV y devuelve `503` en el oráculo si no puede verificar; nunca aprueba una foto a ciegas.
 
 ---
@@ -300,7 +268,7 @@ El archivo se escribe de forma atómica después de cada mutación. No se versio
 - Grupos múltiples, tickers automáticos y carteras por grupo.
 - Retos, LMSR, apuestas, aceptación, oráculo visual y VAR.
 - PWA mobile-first y persistencia JSON.
-- IA con fallback y demo local/HTTPS.
+- IA con fallback y ejecución local/HTTPS.
 
 ### Fase 2 — Modo Adultos 18+
 
@@ -319,7 +287,6 @@ El archivo se escribe de forma atómica después de cada mutación. No se versio
 - No hay login con contraseña: el alias identifica al broker en el navegador. No se permite cambiar de broker desde la interfaz.
 - La app no maneja dinero real.
 - La IA depende de internet y de la cuota del proyecto de Google AI Studio.
-- El túnel gratuito no es una buena opción para la demo final.
 - `static/uploads/` puede crecer con capturas; está ignorado por Git.
 
 ---
