@@ -1,5 +1,8 @@
 # $BROKERS · La bolsa de amigos
 
+<h3 align="center">🏆 Hackathon ETSE 2026 · 6 horas</h3>
+<p align="center"><strong>Mención honorífica (top 5)</strong></p>
+
 MVP de mercado especulativo en tiempo real para grupos de amigos. Cada persona cotiza como un ticker (`$ANA`, `$LUIS`, ...), el grupo crea retos positivos y el resto apuesta monedas virtuales `$BROK` a que se cumplen (`CONFIO`) o no (`NI_DE_BROMA`).
 
 La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinhood dark, servida por Flask. No hay React, Node, npm ni base de datos externa: Flask sirve la API y `static/index.html`, y el estado se guarda en `db.json`.
@@ -9,6 +12,16 @@ La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinh
 ## Resumen
 
 `$BROKERS` convierte cada grupo de amigos en una bolsa privada: cada miembro cotiza, se lanzan retos y se apuesta `$BROK` con `CONFIO` o `NI DE BROMA` mientras un motor LMSR mueve el precio. La IA valida retos y resuelve capturas con VAR. El MVP es virtual; la Fase 2 con dinero real, KYC, licencia y límites es una hoja de ruta.
+
+---
+
+## Capturas
+
+<p align="center">
+  <img src="docs/screenshots/mercado.png" width="32%" alt="Mercado en vivo">
+  <img src="docs/screenshots/detalle.png" width="32%" alt="Contrato en vivo">
+  <img src="docs/screenshots/ranking.png" width="32%" alt="Ranking del grupo">
+</p>
 
 ---
 
@@ -75,6 +88,8 @@ BROKERS/
 │   └── test_smoke.py       # Tests de API, grupos, saldos y cámara
 ├── scripts/
 │   └── local_https.sh      # HTTPS local para usar la cámara desde el móvil
+├── docs/
+│   └── screenshots/        # Capturas de la interfaz (19,5:9)
 ├── db.example.json         # Estado inicial vacío
 ├── .env.example            # Variables de entorno de ejemplo
 ├── pytest.ini

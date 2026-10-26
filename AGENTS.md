@@ -1,8 +1,8 @@
 # AGENTS.md - $BROKERS (La Bolsa de Amigos)
 
 ## 1. Contexto y Visión del Proyecto
-Estamos construyendo un MVP para una hackathon de 7 horas. "$BROKERS" es un mercado de valores especulativo en tiempo real para grupos de amigos universitarios con estética "Bloomberg Terminal / Robinhood Dark Mode".
-- Los amigos cotizan en bolsa mediante un Ticker (`$SAMU`, `$MITO`, etc.).
+Estamos construyendo un MVP para una hackathon de 6 horas. "$BROKERS" es un mercado de valores especulativo en tiempo real para grupos de amigos universitarios con estética "Bloomberg Terminal / Robinhood Dark Mode".
+- Los amigos cotizan en bolsa mediante un Ticker (`$NOMBRE`).
 - Un usuario puede pertenecer a varios grupos (piso, clase, etc.). Cada grupo tiene sus propios activos, retos y ranking.
 - Los usuarios abren "Contratos Flash" sobre retos cotidianos de un amigo.
 - El resto invierte monedas virtuales (`$BROK`) pulsando `CONFIO` (LONG 📈) o `NI_DE_BROMA` (SHORT 📉).
