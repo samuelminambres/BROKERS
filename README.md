@@ -1,9 +1,9 @@
 # $BROKERS · La bolsa de amigos
 
-<h3 align="center">🏆 Hackathon ETSE 2026 · 6 horas</h3>
+<h3 align="center">Hackathon ETSE 2026 · 6 horas</h3>
 <p align="center"><strong>Mención honorífica (top 5)</strong></p>
 
-MVP de mercado especulativo en tiempo real para grupos de amigos. Cada persona cotiza como un ticker (`$ANA`, `$LUIS`, ...), el grupo crea retos positivos y el resto apuesta monedas virtuales `$BROK` a que se cumplen (`CONFIO`) o no (`NI_DE_BROMA`).
+MVP de mercado especulativo en tiempo real para grupos de amigos. Cada persona cotiza como un ticker (`$NORA`, `$LUIS`, ...), el grupo crea retos positivos y el resto apuesta monedas virtuales `$BROK` a que se cumplen (`CONFIO`) o no (`NI_DE_BROMA`).
 
 La interfaz es una webapp mobile-first con estética Bloomberg Terminal / Robinhood dark, servida por Flask. No hay React, Node, npm ni base de datos externa: Flask sirve la API y `static/index.html`, y el estado se guarda en `db.json`.
 
@@ -195,13 +195,13 @@ Base: `/api`.
 | Método | Ruta | Body / params |
 |---|---|---|
 | `GET` | `/estado?usuario=<alias>&grupo=<id>` | Devuelve grupos, grupo actual, amigos, mercados, noticias y ranking. |
-| `POST` | `/usuarios` | `{ "usuario": "ana", "nombre": "Ana" }` |
-| `POST` | `/grupos` | `{ "usuario": "ana", "nombre": "Piso" }` |
-| `POST` | `/grupos/unirse` | `{ "usuario": "ana", "codigo": "4A9C2F" }` |
+| `POST` | `/usuarios` | `{ "usuario": "nora", "nombre": "Nora" }` |
+| `POST` | `/grupos` | `{ "usuario": "nora", "nombre": "Piso" }` |
+| `POST` | `/grupos/unirse` | `{ "usuario": "nora", "codigo": "4A9C2F" }` |
 | `POST` | `/amigos` | `{ "ticker": "$LUIS", "nombre": "Luis", "grupo": "grp_..." }` |
-| `POST` | `/mercados` | `{ "creador": "ana", "ticker": "$LUIS", "pregunta": "Ser capaz de...", "grupo": "grp_..." }` |
+| `POST` | `/mercados` | `{ "creador": "nora", "ticker": "$LUIS", "pregunta": "Ser capaz de...", "grupo": "grp_..." }` |
 | `POST` | `/mercados/<id>/aceptar` | `{ "usuario": "luis" }` |
-| `POST` | `/mercados/<id>/apostar` | `{ "usuario": "ana", "tipo": "SI"\|"NO", "cantidad": 25 }` |
+| `POST` | `/mercados/<id>/apostar` | `{ "usuario": "nora", "tipo": "SI"\|"NO", "cantidad": 25 }` |
 | `POST` | `/mercados/<id>/resolver` | `multipart/form-data`: `usuario`, `imagen`, `captura_ts` (epoch ms), `origen="camara"`, `es_impugnacion` |
 | `POST` | `/reset` | Borra grupos, cuentas, retos y noticias. |
 
@@ -235,9 +235,9 @@ Base: `/api`.
       "id": "grp_...",
       "nombre": "Piso",
       "codigo": "4A9C2F",
-      "creador": "ana",
-      "miembros": ["ana"],
-      "saldos": { "ana": 1000.0 },
+      "creador": "nora",
+      "miembros": ["nora"],
+      "saldos": { "nora": 1000.0 },
       "creado": "2026-10-22"
     }
   ],
@@ -251,7 +251,7 @@ Base: `/api`.
     }
   ],
   "usuarios": {
-    "ana": { "nombre": "Ana" }
+    "nora": { "nombre": "Nora" }
   },
   "mercados": [],
   "noticias": []

@@ -29,17 +29,17 @@ def test_lmsr_math():
 
 def test_ai_service_fallback():
     # Absurd challenge
-    res_absurdo = ai_service.validar_reto_cnmv("ana", "$ANA", "Ir a la Antártida hoy mismo en patinete")
+    res_absurdo = ai_service.validar_reto_cnmv("nora", "$NORA", "Ir a la Antártida hoy mismo en patinete")
     assert res_absurdo["valido"] is False
     assert res_absurdo["penalizacion"] == 10.0
 
     # Reasonable challenge
-    res_ok = ai_service.validar_reto_cnmv("ana", "$ANA", "Llegar puntual a la clase de finanzas")
+    res_ok = ai_service.validar_reto_cnmv("nora", "$NORA", "Llegar puntual a la clase de finanzas")
     assert res_ok["valido"] is True
     assert "Ser capaz de" in res_ok["pregunta_final"]
 
     # Wallstreet headline
-    titular = ai_service.generar_titular_wallstreet("apuesta", {"ticker": "$ANA", "usuario": "luis", "cantidad": 50})
+    titular = ai_service.generar_titular_wallstreet("apuesta", {"ticker": "$NORA", "usuario": "luis", "cantidad": 50})
     assert isinstance(titular, str) and len(titular) > 5
 
 def test_usuario_en_dos_grupos_y_tickers_aislados():
@@ -93,7 +93,7 @@ def test_api_routes():
     # 3. Create group and add its members
     grupo = client.post("/api/grupos", json={"usuario": "luis", "nombre": "Test"}).get_json()["grupo"]
     gid = grupo["id"]
-    assert client.post("/api/grupos/unirse", json={"usuario": "ana", "codigo": grupo["codigo"]}).status_code == 200
+    assert client.post("/api/grupos/unirse", json={"usuario": "nora", "codigo": grupo["codigo"]}).status_code == 200
 
     # 4. Add amigo to the group
     res_amigo = client.post("/api/amigos", json={"ticker": "$NUEVO", "nombre": "Nuevo Amigo", "grupo": gid})
@@ -111,7 +111,7 @@ def test_api_routes():
 
     # 5. No bets until the protagonist accepts
     res_pending = client.post(f"/api/mercados/{mkt_id}/apostar", json={
-        "usuario": "ana",
+        "usuario": "nora",
         "tipo": "SI",
         "cantidad": 25.0
     })
@@ -119,7 +119,7 @@ def test_api_routes():
     assert "aceptado" in res_pending.get_json()["error"]
 
     # 6. Only the protagonist can accept
-    res_wrong_accept = client.post(f"/api/mercados/{mkt_id}/aceptar", json={"usuario": "ana"})
+    res_wrong_accept = client.post(f"/api/mercados/{mkt_id}/aceptar", json={"usuario": "nora"})
     assert res_wrong_accept.status_code == 403
 
     res_accept = client.post(f"/api/mercados/{mkt_id}/aceptar", json={"usuario": "nuevo"})
@@ -128,7 +128,7 @@ def test_api_routes():
 
     # 7. Place bet after acceptance
     res_bet = client.post(f"/api/mercados/{mkt_id}/apostar", json={
-        "usuario": "ana",
+        "usuario": "nora",
         "tipo": "SI",
         "cantidad": 25.0
     })
@@ -136,11 +136,11 @@ def test_api_routes():
     assert res_bet.get_json()["nuevo_precio"] > 50.0
 
     # La apuesta descuenta solo el saldo de este grupo
-    estado_grupo = client.get(f"/api/estado?usuario=ana&grupo={gid}").get_json()
-    assert next(u["saldo"] for u in estado_grupo["ranking"] if u["usuario"] == "ana") == 975.0
-    otro_grupo = client.post("/api/grupos", json={"usuario": "ana", "nombre": "Otro"}).get_json()["grupo"]
-    estado_otro = client.get(f"/api/estado?usuario=ana&grupo={otro_grupo['id']}").get_json()
-    assert next(u["saldo"] for u in estado_otro["ranking"] if u["usuario"] == "ana") == 1000.0
+    estado_grupo = client.get(f"/api/estado?usuario=nora&grupo={gid}").get_json()
+    assert next(u["saldo"] for u in estado_grupo["ranking"] if u["usuario"] == "nora") == 975.0
+    otro_grupo = client.post("/api/grupos", json={"usuario": "nora", "nombre": "Otro"}).get_json()["grupo"]
+    estado_otro = client.get(f"/api/estado?usuario=nora&grupo={otro_grupo['id']}").get_json()
+    assert next(u["saldo"] for u in estado_otro["ranking"] if u["usuario"] == "nora") == 1000.0
 
     # 8. Protagonist cannot bet either side on their own market
     for tipo in ("SI", "NO"):
@@ -165,7 +165,7 @@ def test_api_routes():
     res_stale = client.post(
         f"/api/mercados/{mkt_id}/resolver",
         data={
-            "usuario": "ana", "imagen": stale_img, "es_impugnacion": "false",
+            "usuario": "nora", "imagen": stale_img, "es_impugnacion": "false",
             "captura_ts": "0", "origen": "camara"
         },
         content_type="multipart/form-data"
@@ -183,7 +183,7 @@ def test_api_routes():
         res_solve = client.post(
             f"/api/mercados/{mkt_id}/resolver",
             data={
-                "usuario": "ana", "imagen": fake_img, "es_impugnacion": "false",
+                "usuario": "nora", "imagen": fake_img, "es_impugnacion": "false",
                 "captura_ts": str(int(time.time() * 1000)), "origen": "camara"
             },
             content_type="multipart/form-data"
